@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: product-service
+  datasource:
+    url: ${SPRİNG_DATASOURCE_URL}
+    username: ${SPRİNG_DATASOURCE_USERNAME}
+    password: ${SPRİNG_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+server:
+  port: 8083

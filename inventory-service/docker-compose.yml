@@ -1,0 +1,14 @@
+services:
+  mongo:
+    image: mongo
+    container_name: mongo-db
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "9090:27017"
+
+volumes:
+  mongo-data:

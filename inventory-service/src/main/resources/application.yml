@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: inventory-service
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI}
+
+server:
+  port: 8084
