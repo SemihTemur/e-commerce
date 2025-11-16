@@ -3,9 +3,10 @@ package com.semih.categoryservice.controller;
 import com.semih.categoryservice.dto.request.CategoryRequest;
 import com.semih.categoryservice.dto.response.CategoryResponse;
 import com.semih.categoryservice.dto.response.CategoryWithSubCategoriesResponse;
-import com.semih.categoryservice.dto.response.CategoryWithSubCategoriesResponseForProduct;
 import com.semih.categoryservice.service.CategoryService;
 import com.semih.common.dto.request.CategoryValidationRequest;
+import com.semih.common.dto.request.ProductCategoryInfoRequest;
+import com.semih.common.dto.response.ProductCategoryInfoResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -53,12 +54,12 @@ public class CategoryController {
         return ResponseEntity.ok(categoryWithSubCategoriesById);
     }
 
-    @GetMapping(GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT)
-    public ResponseEntity<CategoryWithSubCategoriesResponseForProduct> getCategoryWithSubCategoriesForProductList
-            (@PathVariable Long categoryId,@PathVariable Long subCategoryId){
-        CategoryWithSubCategoriesResponseForProduct categoriesResponseForProduct = categoryService
-                .getCategoryWithSubCategoriesForProductList(categoryId,subCategoryId);
-        return ResponseEntity.ok(categoriesResponseForProduct);
+    @PostMapping(GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT)
+    public ResponseEntity<List<ProductCategoryInfoResponse>> getCategoryWithSubCategoriesForProductList(
+            @RequestBody List<ProductCategoryInfoRequest> productCategoryInfoRequests){
+        List<ProductCategoryInfoResponse> productCategoryInfoResponses = categoryService
+                .getCategoryWithSubCategoriesForProductList(productCategoryInfoRequests);
+        return ResponseEntity.ok(productCategoryInfoResponses);
     }
 
     @GetMapping(GET_ALL_CATEGORY_WITH_SUBCATEGORIES)

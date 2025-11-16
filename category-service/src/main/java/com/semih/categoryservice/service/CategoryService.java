@@ -3,12 +3,15 @@ package com.semih.categoryservice.service;
 import com.semih.categoryservice.dto.request.CategoryRequest;
 import com.semih.categoryservice.dto.response.CategoryResponse;
 import com.semih.categoryservice.dto.response.CategoryWithSubCategoriesResponse;
-import com.semih.categoryservice.dto.response.CategoryWithSubCategoriesResponseForProduct;
 import com.semih.categoryservice.dto.response.SubCategoryResponse;
 import com.semih.categoryservice.entity.Category;
 import com.semih.categoryservice.entity.SubCategory;
 import com.semih.categoryservice.repository.CategoryRepository;
 import com.semih.common.dto.request.CategoryValidationRequest;
+import com.semih.common.dto.request.ProductCategoryInfoRequest;
+import com.semih.common.dto.request.SubCategoryInfoRequest;
+import com.semih.common.dto.response.ProductCategoryInfoResponse;
+import com.semih.common.dto.response.SubCategoryInfoResponse;
 import com.semih.common.exception.CategoryNotFoundException;
 import com.semih.common.exception.SubCategoryNotFoundException;
 import org.springframework.stereotype.Service;
@@ -16,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -53,17 +57,48 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    public CategoryWithSubCategoriesResponseForProduct getCategoryWithSubCategoriesForProductList(Long categoryId, Long requestSubCategoryId)  {
-        Category category = getCategoryOrThrow(categoryId);
+    public List<ProductCategoryInfoResponse> getCategoryWithSubCategoriesForProductList(
+            List<ProductCategoryInfoRequest> productCategoryInfoRequests)  {
 
-        for (SubCategory subCategory : category.getSubCategory()) {
-            if (subCategory.getId().equals(requestSubCategoryId))
-                return new CategoryWithSubCategoriesResponseForProduct(category.getId(),category.getCategoryName(),
-                        subCategory.getId(),subCategory.getSubCategoryName());;
+        List<ProductCategoryInfoResponse> productCategoryResponses = new ArrayList<>();
+
+        for(ProductCategoryInfoRequest productCategoryInfoRequest:productCategoryInfoRequests){
+            Category category = getCategoryOrThrow(productCategoryInfoRequest.categoryId());
+
+            Set<Long> subCategoryRequestIdList = productCategoryInfoRequest.subCategoryInfoRequests().stream()
+                    .map(SubCategoryInfoRequest::subCategoryId)
+                    .collect(Collectors.toSet());
+
+            List<SubCategoryInfoResponse>  subCategoryInfoResponseList = getSubCategoryInfoResponseList(category,
+                    subCategoryRequestIdList);
+
+            productCategoryResponses.add(new ProductCategoryInfoResponse(category.getId(),category.getCategoryName()
+                    ,subCategoryInfoResponseList));
+
         }
 
-        return null;
+        return productCategoryResponses;
     }
+
+    private List<SubCategoryInfoResponse> getSubCategoryInfoResponseList(Category category,
+                                                                         Set<Long> subCategoryRequestIdList){
+        List<SubCategoryInfoResponse> subCategoryInfoResponseList = new ArrayList<>();
+
+        Map<Long, SubCategory> subCategoryMap = category.getSubCategory().stream()
+                .collect(Collectors.toMap(SubCategory::getId, sc -> sc));
+
+        for(Long requestedId : subCategoryRequestIdList){
+            SubCategory subCategory = subCategoryMap.get(requestedId);
+            if(subCategory == null){
+                throw new SubCategoryNotFoundException("Alt kategori bulunamadı. ID: " + requestedId);
+            }
+            subCategoryInfoResponseList.add(new SubCategoryInfoResponse(subCategory.getId(),
+                    subCategory.getSubCategoryName()));
+        }
+
+        return subCategoryInfoResponseList;
+    }
+
 
     @Transactional(readOnly = true)
     public List<CategoryWithSubCategoriesResponse> getAllCategoryWithSubCategories(){

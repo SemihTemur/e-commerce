@@ -6,10 +6,10 @@ import jakarta.persistence.Embeddable;
 @Embeddable
 public class ProductCategoryMapping {
 
-    @Column(name = "category_id", nullable = false)
+    @Column(name = "category_id")
     private Long categoryId;
 
-    @Column(name = "sub_category_id",nullable = false)
+    @Column(name = "sub_category_id")
     private Long subCategoryId;
 
     public ProductCategoryMapping() {}

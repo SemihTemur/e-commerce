@@ -1,7 +1,8 @@
 package com.semih.productservice.client;
 
 import com.semih.common.dto.request.CategoryValidationRequest;
-import com.semih.common.dto.response.CategoryWithSubCategoriesResponseForProduct;
+import com.semih.common.dto.request.ProductCategoryInfoRequest;
+import com.semih.common.dto.response.ProductCategoryInfoResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,10 +23,7 @@ public interface CategoryClient {
     @PostMapping(EXISTS_CATEGORY_WITH_SUBCATEGORIES)
     ResponseEntity<Void> existsCategoryWithSubCategories(@RequestBody CategoryValidationRequest categoryValidationRequestList);
 
-    @GetMapping(GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID+"/{categoryId}")
-    ResponseEntity<com.semih.common.dto.response.CategoryWithSubCategoriesResponseForProduct> getCategoryWithSubCategoriesById(@PathVariable Long categoryId);
-
-    @GetMapping(GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT+"/{categoryId}/{subCategoryId}")
-    ResponseEntity<CategoryWithSubCategoriesResponseForProduct> getCategoryWithSubCategoriesForProductList
-            (@PathVariable Long categoryId,@PathVariable Long subCategoryId);
+    @GetMapping(GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT)
+    ResponseEntity<List<ProductCategoryInfoResponse>> getCategoryWithSubCategoriesForProductList
+            (@RequestBody List<ProductCategoryInfoRequest> productCategoryInfoRequestList);
 }

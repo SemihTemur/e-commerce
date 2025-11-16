@@ -1,8 +1,10 @@
 package com.semih.productservice.service;
 
 import com.semih.common.dto.request.CategoryValidationRequest;
+import com.semih.common.dto.request.ProductCategoryInfoRequest;
 import com.semih.common.dto.request.ProductQuantityRequest;
-import com.semih.common.dto.response.CategoryWithSubCategoriesResponseForProduct;
+import com.semih.common.dto.request.SubCategoryInfoRequest;
+import com.semih.common.dto.response.ProductCategoryInfoResponse;
 import com.semih.common.dto.response.ProductStockResponse;
 import com.semih.productservice.client.CategoryClient;
 import com.semih.productservice.client.InventoryClient;
@@ -17,7 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,7 +49,7 @@ public class ProductService {
         return "Succesfully";
     }
 
-    public String addCategoryToProduct(Long productId, CategoryValidationRequest categoryValidationRequest){
+    public String addCategoryToProduct(Long productId,Long categoryId){
         Product product = getProductOrThrow(productId);
 
         categoryClient.existsCategoryWithSubCategories(categoryValidationRequest);
@@ -71,8 +75,7 @@ public class ProductService {
         List<ProductDetailResponse> productDetailResponseList = new ArrayList<>();
 
         for(Product product:productList){
-            List<CategoryWithSubCategoriesResponseForProduct> categories = new ArrayList<>();
-            addCategoryResponses(product,categories);
+            List<ProductCategoryInfoResponse> categories = addCategoryResponses(product);
 
             ProductStockResponse stock = inventoryClient.getStockByProductId(product.getId()).getBody();
 
@@ -164,7 +167,7 @@ public class ProductService {
 
     //toResponse
     private ProductDetailResponse buildProductDetailResponse(Product product,
-                                                             List<CategoryWithSubCategoriesResponseForProduct> categories,
+                                                             List<ProductCategoryInfoResponse> categories,
                                                              ProductStockResponse stockResponse) {
 
         ProductInfoResponse productInfoResponse = mapToProductInfoResponse(product);
@@ -181,19 +184,23 @@ public class ProductService {
                 product.getCreatedAt(),product.getUpdatedAt());
     }
 
-    private void addCategoryResponses(
-            Product product,
-            List<CategoryWithSubCategoriesResponseForProduct> responseList) {
+    private List<ProductCategoryInfoResponse> addCategoryResponses(
+            Product product) {
 
-        for (ProductCategoryMapping mapping : product.getCategoryMappings()) {
-            CategoryWithSubCategoriesResponseForProduct response = categoryClient
-                    .getCategoryWithSubCategoriesForProductList(
-                            mapping.getCategoryId(),
-                            mapping.getSubCategoryId())
-                    .getBody();
-
-            responseList.add(response);
+        Map<Long,List<Long>> map = new HashMap<>();
+        for(ProductCategoryMapping mapping : product.getCategoryMappings()) {
+           map.computeIfAbsent(mapping.getCategoryId(),k-> new ArrayList<>()).add(mapping.getSubCategoryId());
         }
+
+        List<ProductCategoryInfoRequest> productCategoryInfoRequests = new ArrayList<>();
+        for(Map.Entry<Long,List<Long>> entry: map.entrySet()){
+            List<SubCategoryInfoRequest> subCategoryInfoRequests = new ArrayList<>();
+            for(Long subCategoryId:entry.getValue())
+                subCategoryInfoRequests.add(new SubCategoryInfoRequest(subCategoryId));
+            productCategoryInfoRequests.add(new ProductCategoryInfoRequest(entry.getKey(),subCategoryInfoRequests));
+        }
+
+        return categoryClient.getCategoryWithSubCategoriesForProductList(productCategoryInfoRequests).getBody();
     }
 
     private Product mapToCategoryEntity(ProductRequest productRequest){

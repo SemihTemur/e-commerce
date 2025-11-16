@@ -28,10 +28,9 @@ public class ProductController {
         return ResponseEntity.ok(message);
     }
 
-    @PostMapping(ADD_CATEGORIES_TO_PRODUCT)
-    public ResponseEntity<String> addCategoryToProduct(@PathVariable Long id, @Valid @RequestBody
-    CategoryValidationRequest categoryValidationRequest){
-        String message = productService.addCategoryToProduct(id,categoryValidationRequest);
+    @PostMapping(ADD_CATEGORY_TO_PRODUCT_BY_ID)
+    public ResponseEntity<String> addCategoryToProduct(@PathVariable Long productId,@PathVariable Long categoryId){
+        String message = productService.addCategoryToProduct(productId,categoryId);
         return ResponseEntity.ok(message);
     }
 

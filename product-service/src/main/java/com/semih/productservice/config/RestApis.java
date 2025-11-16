@@ -7,7 +7,8 @@ public class RestApis {
     public static final String VERSIONS = "/v1";
     public static final String PRODUCT = DEVELOPER+VERSIONS+"/product";
     public static final String CREATE_PRODUCT = "/createProduct";
-    public static final String ADD_CATEGORIES_TO_PRODUCT = "/product/{id}/categories";
+    public static final String ADD_CATEGORY_TO_PRODUCT_BY_ID = "/product/{productId}/categories/{categoryId}";
+    public static final String ADD_SUBCATEGORY_TO_PRODUCT = "/products/{productId}/categories/{categoryId}/subcategories";
     public static final String GET_PRODUCT_INFO = "/getProductInfo";
     public static final String GET_PRODUCT_DETAILS = "/getProductDetails";
     public static final String UPDATE_PRODUCT = "/updateProduct/{id}";
@@ -17,8 +18,8 @@ public class RestApis {
 
     //Category
     public static final String VALIDATE_CATEGORY_HIERARCHY = "/validateCategoryHierarchy";
-    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID = "/getCategoryWıthSubCategoriesById";
-    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT = "/getCategoryWıthSubCategoriesById";
+    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID = "/getCategoryWıthSubCategoriesById/{categoryId}";
+    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT = "/getCategoryWithSubcategoriesForProduct";
     public static final String EXISTS_CATEGORY_WITH_SUBCATEGORIES = "/existsCategoryWithSubCategories";
 
     // Inventory

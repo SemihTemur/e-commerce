@@ -11,7 +11,7 @@ public class RestApis {
     public static final String EXISTS_CATEGORY_WITH_SUBCATEGORIES = "/existsCategoryWithSubCategories";
     public static final String GET_CATEGORY_LIST = "/categoryList";
     public static final String GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID = "/getCategoryWıthSubCategoriesById/{categoryId}";
-    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT = "/getCategoryWıthSubCategoriesById/{categoryId}/{subCategoryId}";
+    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT = "/getCategoryWithSubcategoriesForProduct";
     public static final String GET_ALL_CATEGORY_WITH_SUBCATEGORIES = "/getAllCategoryWıthSubCategories";
     public static final String UPDATE_CATEGORY = "/updateCategory/{categoryId}";
     public static final String DELETE_CATEGORY = "/deleteCategory/{categoryId}";
