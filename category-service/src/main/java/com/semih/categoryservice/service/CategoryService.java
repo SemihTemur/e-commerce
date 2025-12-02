@@ -50,6 +50,13 @@ public class CategoryService {
                 .collect(Collectors.toList());
     }
 
+    public void validateCategoryExistsById(Long categoryId){
+        if(!categoryRepository.existsById(categoryId)){
+            throw new CategoryNotFoundException("Kategori bulunamadı. ID: " + categoryId);
+        }
+
+    }
+
     @Transactional(readOnly = true)
     public CategoryWithSubCategoriesResponse getCategoryWithSubCategoriesById(Long categoryId){
         Category category = getCategoryOrThrow(categoryId);

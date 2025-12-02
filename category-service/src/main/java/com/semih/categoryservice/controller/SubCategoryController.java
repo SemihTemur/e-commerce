@@ -33,19 +33,30 @@ public class SubCategoryController {
         return ResponseEntity.ok(subCategoryResponseList);
     }
 
-    @GetMapping(GET_SUBCATEGORY_BY_ID+"/{subCategoryId}")
+    @GetMapping(GET_SUBCATEGORY_BY_ID)
     public ResponseEntity<SubCategoryResponse> getSubCategoryById(@PathVariable Long subCategoryId){
         SubCategoryResponse subCategoryResponse = subCategoryService.getSubCategoryById(subCategoryId);
         return ResponseEntity.ok(subCategoryResponse);
     }
 
-    @PutMapping(UPDATE_SUBCATEGORY+"/{subCategoryId}")
-    public ResponseEntity<SubCategoryResponse> updateSubCategoryById(@PathVariable Long subCategoryId,@Valid @RequestBody SubCategoryUpdateRequest subCategoryUpdateRequest){
-        SubCategoryResponse subCategoryResponse = subCategoryService.updateSubCategoryById(subCategoryId,subCategoryUpdateRequest);
+    @GetMapping(VALIDATE_SUB_CATEGORY_EXISTS_BY_ID)
+    public ResponseEntity<Void> validateSubCategoryExists(
+            @PathVariable Long categoryId, @PathVariable Long subCategoryId){
+        subCategoryService.validateSubCategoryExists(categoryId,subCategoryId);
+        return ResponseEntity.noContent().build();
+    }
+
+
+    @PutMapping(UPDATE_SUBCATEGORY)
+    public ResponseEntity<SubCategoryResponse> updateSubCategoryById(
+            @Valid @RequestBody SubCategoryUpdateRequest subCategoryUpdateRequest,
+            @PathVariable Long subCategoryId) {
+        SubCategoryResponse subCategoryResponse = subCategoryService.updateSubCategoryById(subCategoryId, subCategoryUpdateRequest);
         return ResponseEntity.ok(subCategoryResponse);
     }
 
-    @DeleteMapping(DELETE_SUBCATEGORY+"/{subCategoryId}")
+
+    @DeleteMapping(DELETE_SUBCATEGORY)
     public ResponseEntity<Boolean> deleteSubCategoryById(@PathVariable Long subCategoryId){
         return ResponseEntity.ok(subCategoryService.deleteSubCategoryById(subCategoryId));
     }

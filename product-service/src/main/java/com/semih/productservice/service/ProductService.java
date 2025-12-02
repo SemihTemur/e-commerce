@@ -6,8 +6,11 @@ import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.request.SubCategoryInfoRequest;
 import com.semih.common.dto.response.ProductCategoryInfoResponse;
 import com.semih.common.dto.response.ProductStockResponse;
+import com.semih.common.exception.CategoryNotFoundException;
+import com.semih.common.exception.SubCategoryNotFoundException;
 import com.semih.productservice.client.CategoryClient;
 import com.semih.productservice.client.InventoryClient;
+import com.semih.productservice.client.SubCategoryClient;
 import com.semih.productservice.dto.request.ProductRequest;
 import com.semih.productservice.dto.response.ProductDetailResponse;
 import com.semih.productservice.dto.response.ProductInfoResponse;
@@ -28,22 +31,25 @@ import java.util.stream.Collectors;
 public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryClient categoryClient;
+    private final SubCategoryClient subCategoryClient;
     private final InventoryClient inventoryClient;
 
-    public ProductService(ProductRepository productRepository, CategoryClient categoryClient, InventoryClient inventoryClient) {
+    public ProductService(ProductRepository productRepository, CategoryClient categoryClient, InventoryClient inventoryClient, SubCategoryClient subCategoryClient) {
         this.productRepository = productRepository;
         this.categoryClient = categoryClient;
+        this.subCategoryClient = subCategoryClient;
         this.inventoryClient = inventoryClient;
     }
 
     // Post
     public String createProduct(ProductRequest productRequest){
-        categoryClient.validateCategoryHierarchy(productRequest.categoryRequestList());
+        if(productRequest.categoryRequestList()!=null && !productRequest.categoryRequestList().isEmpty())
+            categoryClient.validateCategoryHierarchy(productRequest.categoryRequestList());
 
         Product savedProduct = productRepository.save(mapToCategoryEntity(productRequest));
-        ProductQuantityRequest productQuantityRequest = mapToProductQuantityRequest(savedProduct.getId()
-                ,productRequest.quantity());
 
+        ProductQuantityRequest productQuantityRequest = mapToProductQuantityRequest(
+                savedProduct.getId(),productRequest.quantity());
         inventoryClient.createInventoryToProduct(productQuantityRequest);
 
         return "Succesfully";
@@ -52,9 +58,36 @@ public class ProductService {
     public String addCategoryToProduct(Long productId,Long categoryId){
         Product product = getProductOrThrow(productId);
 
-        categoryClient.existsCategoryWithSubCategories(categoryValidationRequest);
+        categoryClient.validateCategoryExistsById(categoryId);
 
-        product.getCategoryMappings().addAll(mapToProductCategoryMappingEmbeddable(categoryValidationRequest));
+        addCategoryMappingToProduct(product,categoryId,null);
+
+        productRepository.save(product);
+
+        return "Succesfully";
+    }
+
+    public String addSubCategoryToProduct(Long productId,Long categoryId,Long subCategoryId){
+        Product product = getProductOrThrow(productId);
+
+        subCategoryClient.validateSubCategoryExists(categoryId,subCategoryId);
+
+        List<ProductCategoryMapping> productCategoryMappingList = productRepository.findByProductIdAndCategoryId(
+                productId,categoryId
+        );
+
+        boolean hasSubCategory = false;
+        for (ProductCategoryMapping productCategoryMapping : productCategoryMappingList) {
+            if (productCategoryMapping.getSubCategoryId() == null) {
+                hasSubCategory = true;
+                productCategoryMapping.setSubCategoryId(subCategoryId);
+                product.setCategoryMappings(productCategoryMappingList);
+            }
+        }
+
+
+        if(!hasSubCategory)
+            addCategoryMappingToProduct(product,categoryId,subCategoryId);
 
         productRepository.save(product);
 
@@ -112,10 +145,22 @@ public class ProductService {
     public Boolean deleteProductByCategoryId(Long productId,Long categoryId){
         Product product = getProductOrThrow(productId);
 
+
         List<ProductCategoryMapping> productCategoryMappingList = product.getCategoryMappings();
+
+        boolean isFound = false;
+        for(ProductCategoryMapping productCategoryMapping:productCategoryMappingList){
+            if(productCategoryMapping.getCategoryId().equals(categoryId)){
+                isFound = true;
+                break;
+            }
+        }
+
+        if(!isFound)
+            throw new CategoryNotFoundException("Kategori bulunamadı. ID: " + categoryId);
+
         productCategoryMappingList.removeIf(productCategoryMapping -> productCategoryMapping.getCategoryId()
                 .equals(categoryId));
-        product.setCategoryMappings(productCategoryMappingList);
 
         productRepository.save(product);
 
@@ -126,9 +171,20 @@ public class ProductService {
         Product product = getProductOrThrow(productId);
 
         List<ProductCategoryMapping> productCategoryMappingList = product.getCategoryMappings();
+
+        boolean isFound = false;
+        for(ProductCategoryMapping productCategoryMapping:productCategoryMappingList){
+            if(productCategoryMapping.getSubCategoryId().equals(subCategoryId)){
+                isFound = true;
+                break;
+            }
+        }
+
+        if(!isFound)
+            throw new SubCategoryNotFoundException("Alt Kategori Bulunamadı "+subCategoryId);
+
         productCategoryMappingList.removeIf(productCategoryMapping -> productCategoryMapping.getSubCategoryId()
                 .equals(subCategoryId));
-        product.setCategoryMappings(productCategoryMappingList);
 
         productRepository.save(product);
 
@@ -151,17 +207,6 @@ public class ProductService {
                         subCategoryId
                 ));
         }
-        return productCategoryMappingList;
-    }
-
-    private List<ProductCategoryMapping> mapToProductCategoryMappingEmbeddable(CategoryValidationRequest
-                                                                                        categoryValidationRequest){
-        List<ProductCategoryMapping> productCategoryMappingList = new ArrayList<>();
-        for(Long subCategoryId:categoryValidationRequest.subCategoriesId()){
-            productCategoryMappingList.add(new ProductCategoryMapping(categoryValidationRequest.categoryId(),
-                    subCategoryId));
-        }
-
         return productCategoryMappingList;
     }
 
@@ -204,18 +249,35 @@ public class ProductService {
     }
 
     private Product mapToCategoryEntity(ProductRequest productRequest){
+        if(productRequest.categoryRequestList()!=null && !productRequest.categoryRequestList().isEmpty()) {
+            return new Product(
+                    productRequest.productName(),
+                    productRequest.productDescription(),
+                    productRequest.productPrice(),
+                    mapToProductCategoryMappingEmbeddableList(productRequest.categoryRequestList())
+            );
+        }
+
         return new Product(
                 productRequest.productName(),
                 productRequest.productDescription(),
-                productRequest.productPrice(),
-                mapToProductCategoryMappingEmbeddableList(productRequest.categoryRequestList())
+                productRequest.productPrice()
         );
+
     }
 
     private Product getProductOrThrow(Long id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Ürün Bulunamadı !!! "+id));
     }
+
+    public void addCategoryMappingToProduct(Product product, Long categoryId, Long subCategoryId) {
+        List<ProductCategoryMapping> productCategoryMappingList = new ArrayList<>();
+        productCategoryMappingList.add(new ProductCategoryMapping(categoryId, subCategoryId));
+
+        product.getCategoryMappings().addAll(productCategoryMappingList);
+    }
+
 
     private void updateBasicFields(Product product, ProductRequest request) {
         if (request.productName() != null && !request.productName().isBlank()) {

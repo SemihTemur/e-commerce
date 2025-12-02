@@ -13,6 +13,7 @@ public class ProductCategoryMapping {
     private Long subCategoryId;
 
     public ProductCategoryMapping() {}
+
     public ProductCategoryMapping(Long categoryId, Long subCategoryId) {
         this.categoryId = categoryId;
         this.subCategoryId = subCategoryId;

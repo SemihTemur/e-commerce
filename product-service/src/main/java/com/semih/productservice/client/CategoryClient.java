@@ -23,6 +23,9 @@ public interface CategoryClient {
     @PostMapping(EXISTS_CATEGORY_WITH_SUBCATEGORIES)
     ResponseEntity<Void> existsCategoryWithSubCategories(@RequestBody CategoryValidationRequest categoryValidationRequestList);
 
+    @GetMapping(VALIDATE_CATEGORY_EXISTS_BY_ID)
+    ResponseEntity<Void> validateCategoryExistsById(@PathVariable Long categoryId);
+
     @GetMapping(GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT)
     ResponseEntity<List<ProductCategoryInfoResponse>> getCategoryWithSubCategoriesForProductList
             (@RequestBody List<ProductCategoryInfoRequest> productCategoryInfoRequestList);

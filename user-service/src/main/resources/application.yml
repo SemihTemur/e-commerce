@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: user-service
+  datasource:
+    url: ${POSTGRES_USER}
+    username: ${SPRİNG_DATASOURCE_USERNAME}
+    password: ${SPRİNG_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
+jwt:
+  secret: ${SPRING_JWT_SECRET}
+
+server:
+  port: 8086

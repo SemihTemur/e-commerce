@@ -2,6 +2,9 @@ package com.semih.inventoryservice.config;
 
 public class RestApis {
 
+    private RestApis() {
+    }
+
     public static final String DEVELOPER = "/dev";
     public static final String TEST = "/test";
     public static final String VERSIONS = "/v1";

@@ -46,6 +46,12 @@ public class Product {
     public Product() {
     }
 
+    public Product(String productName, String productDescription, BigDecimal productPrice) {
+        this.productName = productName;
+        this.productDescription = productDescription;
+        this.productPrice = productPrice;
+    }
+
     public Product(String productName, String productDescription, BigDecimal productPrice, List<ProductCategoryMapping> categoryMappings) {
         this.productName = productName;
         this.productDescription = productDescription;

@@ -5,10 +5,10 @@ import com.semih.categoryservice.dto.request.SubCategoryUpdateRequest;
 import com.semih.categoryservice.dto.response.SubCategoryResponse;
 import com.semih.categoryservice.entity.SubCategory;
 import com.semih.categoryservice.repository.SubCategoryRepository;
+import com.semih.common.exception.CategoryNotFoundException;
 import com.semih.common.exception.SubCategoryNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,6 +37,14 @@ public class SubCategoryService {
 
     public SubCategoryResponse getSubCategoryById(Long id){
         return mapToSubCategoryResponse(getSubCategoryOrThrow(id));
+    }
+
+    public void validateSubCategoryExists(Long categoryId,Long subCategoryId){
+        SubCategory subCategory = getSubCategoryOrThrow(subCategoryId);
+
+        if(!subCategory.getCategory().getId().equals(categoryId)){
+            throw new CategoryNotFoundException("Kategori bulunamadı. ID: " + categoryId);
+        }
     }
 
     //Put

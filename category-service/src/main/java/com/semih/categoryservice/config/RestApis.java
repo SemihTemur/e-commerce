@@ -10,8 +10,11 @@ public class RestApis {
     public static final String VALIDATE_CATEGORY_HIERARCHY = "/validateCategoryHierarchy";
     public static final String EXISTS_CATEGORY_WITH_SUBCATEGORIES = "/existsCategoryWithSubCategories";
     public static final String GET_CATEGORY_LIST = "/categoryList";
-    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID = "/getCategoryWıthSubCategoriesById/{categoryId}";
-    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT = "/getCategoryWithSubcategoriesForProduct";
+    public static final String VALIDATE_CATEGORY_EXISTS_BY_ID = "/category/validate/{categoryId}";
+    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID =
+            "/getCategoryWıthSubCategoriesById/{categoryId}";
+    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT =
+            "/getCategoryWithSubcategoriesForProduct";
     public static final String GET_ALL_CATEGORY_WITH_SUBCATEGORIES = "/getAllCategoryWıthSubCategories";
     public static final String UPDATE_CATEGORY = "/updateCategory/{categoryId}";
     public static final String DELETE_CATEGORY = "/deleteCategory/{categoryId}";
@@ -20,8 +23,10 @@ public class RestApis {
     public static final String SUB_CATEGORY = DEVELOPER+VERSIONS+"/subCategory";
     public static final String CREATE_SUBCATEGORY = "/createSubCategory";
     public static final String GET_SUBCATEGORY_LIST = "/subCategoryList";
-    public static final String GET_SUBCATEGORY_BY_ID = "/getSubCategoryById";
-    public static final String UPDATE_SUBCATEGORY = "/updateSubCategory";
-    public static final String DELETE_SUBCATEGORY = "/deleteSubCategory";
+    public static final String VALIDATE_SUB_CATEGORY_EXISTS_BY_ID =
+            "/category/{categoryId}/sub-category/validate/{subCategoryId}";
+    public static final String GET_SUBCATEGORY_BY_ID = "/getSubCategoryById/{subCategoryId}";
+    public static final String UPDATE_SUBCATEGORY = "/updateSubCategory/{subCategoryId}";
+    public static final String DELETE_SUBCATEGORY = "/deleteSubCategory/{subCategoryId}";
 
 }

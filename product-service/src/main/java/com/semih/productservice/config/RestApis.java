@@ -8,19 +8,27 @@ public class RestApis {
     public static final String PRODUCT = DEVELOPER+VERSIONS+"/product";
     public static final String CREATE_PRODUCT = "/createProduct";
     public static final String ADD_CATEGORY_TO_PRODUCT_BY_ID = "/product/{productId}/categories/{categoryId}";
-    public static final String ADD_SUBCATEGORY_TO_PRODUCT = "/products/{productId}/categories/{categoryId}/subcategories";
+    public static final String ADD_SUBCATEGORY_TO_PRODUCT =
+            "/products/{productId}/categories/{categoryId}/subcategories/{subCategoryId}";
     public static final String GET_PRODUCT_INFO = "/getProductInfo";
     public static final String GET_PRODUCT_DETAILS = "/getProductDetails";
     public static final String UPDATE_PRODUCT = "/updateProduct/{id}";
     public static final String DELETE_PRODUCT_BY_ID = "/deleteProductById/{productId}";
     public static final String DELETE_PRODUCT_BY_CATEGORY_ID = "/deleteProductByCategoryId/{productId}/{categoryId}";
-    public static final String DELETE_PRODUCT_BY_SUB_CATEGORY_ID = "/deleteProductBySubCategoryId/{productId}/{subCategoryId}";
+    public static final String DELETE_PRODUCT_BY_SUB_CATEGORY_ID =
+            "/deleteProductBySubCategoryId/{productId}/{subCategoryId}";
 
     //Category
     public static final String VALIDATE_CATEGORY_HIERARCHY = "/validateCategoryHierarchy";
-    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID = "/getCategoryWıthSubCategoriesById/{categoryId}";
-    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT = "/getCategoryWithSubcategoriesForProduct";
+    public static final String VALIDATE_CATEGORY_EXISTS_BY_ID = "/category/validate/{categoryId}";
+    public static final String GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT =
+            "/getCategoryWithSubcategoriesForProduct";
     public static final String EXISTS_CATEGORY_WITH_SUBCATEGORIES = "/existsCategoryWithSubCategories";
+
+
+    //SubCategory
+    public static final String VALIDATE_SUB_CATEGORY_EXISTS_BY_ID =
+            "/category/{categoryId}/sub-category/validate/{subCategoryId}";
 
     // Inventory
     public static final String CREATE_INVENTORY_TO_PRODUCT ="/createInventoryToProduct";

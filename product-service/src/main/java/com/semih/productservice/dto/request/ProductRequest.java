@@ -1,16 +1,17 @@
 package com.semih.productservice.dto.request;
 
 import com.semih.common.dto.request.CategoryValidationRequest;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.util.List;
 
 public record ProductRequest(
 
-        @NotEmpty(message = "Kategori listesi boş olamaz")
-        List<@Valid CategoryValidationRequest> categoryRequestList,
+        List<CategoryValidationRequest> categoryRequestList,
 
         @NotBlank(message = "Ürün adı boş olamaz")
         @Size(min = 3, message = "Ürün adı en az 3 karakter olmalı")

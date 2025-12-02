@@ -31,13 +31,15 @@ public class CategoryController {
     }
 
     @PostMapping(VALIDATE_CATEGORY_HIERARCHY)
-    public ResponseEntity<Void> validateCategoryHierarchy(@RequestBody List<CategoryValidationRequest> categoryValidationRequestList){
+    public ResponseEntity<Void> validateCategoryHierarchy(
+            @RequestBody List<CategoryValidationRequest> categoryValidationRequestList){
         categoryService.validateCategoryHierarchy(categoryValidationRequestList);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping(EXISTS_CATEGORY_WITH_SUBCATEGORIES)
-    public ResponseEntity<Void> existsCategoryWithSubCategories(@RequestBody CategoryValidationRequest categoryValidationRequest){
+    public ResponseEntity<Void> existsCategoryWithSubCategories(
+            @RequestBody CategoryValidationRequest categoryValidationRequest){
         categoryService.existsCategoryWithSubCategories(categoryValidationRequest);
         return ResponseEntity.noContent().build();
     }
@@ -48,8 +50,15 @@ public class CategoryController {
         return ResponseEntity.ok(categoryResponseList);
     }
 
+    @GetMapping(VALIDATE_CATEGORY_EXISTS_BY_ID)
+    public ResponseEntity<Void> validateCategoryExistsById(@PathVariable Long categoryId){
+        categoryService.validateCategoryExistsById(categoryId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping(GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID)
-    public ResponseEntity<CategoryWithSubCategoriesResponse> getCategoryWithSubCategoriesById(@PathVariable Long categoryId){
+    public ResponseEntity<CategoryWithSubCategoriesResponse> getCategoryWithSubCategoriesById(
+            @PathVariable Long categoryId){
         CategoryWithSubCategoriesResponse categoryWithSubCategoriesById = categoryService.getCategoryWithSubCategoriesById(categoryId);
         return ResponseEntity.ok(categoryWithSubCategoriesById);
     }
@@ -69,7 +78,8 @@ public class CategoryController {
     }
 
     @PutMapping(UPDATE_CATEGORY)
-    public ResponseEntity<CategoryResponse> updateCategoryById(@PathVariable Long categoryId,@Valid @RequestBody CategoryRequest categoryRequest){
+    public ResponseEntity<CategoryResponse> updateCategoryById(
+            @PathVariable Long categoryId, @Valid @RequestBody CategoryRequest categoryRequest){
         CategoryResponse categoryResponse = categoryService.updateCategoryById(categoryId,categoryRequest);
         return ResponseEntity.ok(categoryResponse);
     }

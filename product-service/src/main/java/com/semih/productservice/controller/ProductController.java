@@ -34,6 +34,13 @@ public class ProductController {
         return ResponseEntity.ok(message);
     }
 
+    @PostMapping(ADD_SUBCATEGORY_TO_PRODUCT)
+    public ResponseEntity<String> addSubCategoryToProduct(
+            @PathVariable Long productId,@PathVariable Long categoryId,@PathVariable Long subCategoryId ){
+        String message = productService.addSubCategoryToProduct(productId,categoryId,subCategoryId);
+        return ResponseEntity.ok(message);
+    }
+
     @GetMapping(GET_PRODUCT_INFO)
     public ResponseEntity<List<ProductInfoResponse>> getAllProductInfo(){
         List<ProductInfoResponse> productInfoResponseList = productService.getAllProductInfo();
@@ -47,8 +54,8 @@ public class ProductController {
     }
 
     @PatchMapping(UPDATE_PRODUCT)
-    public ResponseEntity<String> updateProductPartially(@PathVariable Long id,
-                                                         @Valid @RequestBody ProductRequest productRequest){
+    public ResponseEntity<String> updateProductPartially(
+            @PathVariable Long id, @Valid @RequestBody ProductRequest productRequest){
         String message = productService.updateProductPartially(id, productRequest);
         return ResponseEntity.ok(message);
     }
@@ -59,14 +66,14 @@ public class ProductController {
     }
 
     @DeleteMapping(DELETE_PRODUCT_BY_CATEGORY_ID)
-    public ResponseEntity<Boolean> deleteProductByCategoryId(@PathVariable Long productId,
-                                                             @PathVariable Long categoryId){
+    public ResponseEntity<Boolean> deleteProductByCategoryId(
+            @PathVariable Long productId, @PathVariable Long categoryId){
         return ResponseEntity.ok(productService.deleteProductByCategoryId(productId, categoryId));
     }
 
     @DeleteMapping(DELETE_PRODUCT_BY_SUB_CATEGORY_ID)
-    public ResponseEntity<Boolean> deleteProductBySubCategoryId(@PathVariable Long productId,
-                                                                @PathVariable Long subCategoryId){
+    public ResponseEntity<Boolean> deleteProductBySubCategoryId(
+            @PathVariable Long productId, @PathVariable Long subCategoryId){
         return ResponseEntity.ok(productService.deleteProductBySubCategoryId(productId, subCategoryId));
     }
 
