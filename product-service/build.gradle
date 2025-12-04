@@ -14,13 +14,14 @@ java {
 	}
 }
 
-ext {
-	set('springCloudVersion', "2025.0.0")
-}
 
 repositories {
 	mavenLocal()
 	mavenCentral()
+}
+
+ext {
+	set('springCloudVersion', "2025.0.0")
 }
 
 dependencies {
@@ -28,6 +29,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 	implementation 'com.semih:common:0.0.1-SNAPSHOT-plain'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14'
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
