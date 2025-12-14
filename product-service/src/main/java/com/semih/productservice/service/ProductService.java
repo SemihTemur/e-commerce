@@ -10,7 +10,6 @@ import com.semih.common.exception.CategoryNotFoundException;
 import com.semih.common.exception.SubCategoryNotFoundException;
 import com.semih.productservice.client.CategoryClient;
 import com.semih.productservice.client.InventoryClient;
-import com.semih.productservice.client.SubCategoryClient;
 import com.semih.productservice.dto.request.ProductRequest;
 import com.semih.productservice.dto.response.ProductDetailResponse;
 import com.semih.productservice.dto.response.ProductInfoResponse;
@@ -31,13 +30,11 @@ import java.util.stream.Collectors;
 public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryClient categoryClient;
-    private final SubCategoryClient subCategoryClient;
     private final InventoryClient inventoryClient;
 
-    public ProductService(ProductRepository productRepository, CategoryClient categoryClient, InventoryClient inventoryClient, SubCategoryClient subCategoryClient) {
+    public ProductService(ProductRepository productRepository, CategoryClient categoryClient, InventoryClient inventoryClient) {
         this.productRepository = productRepository;
         this.categoryClient = categoryClient;
-        this.subCategoryClient = subCategoryClient;
         this.inventoryClient = inventoryClient;
     }
 
@@ -70,7 +67,7 @@ public class ProductService {
     public String addSubCategoryToProduct(Long productId,Long categoryId,Long subCategoryId){
         Product product = getProductOrThrow(productId);
 
-        subCategoryClient.validateSubCategoryExists(categoryId,subCategoryId);
+        categoryClient.validateSubCategoryExists(categoryId,subCategoryId);
 
         List<ProductCategoryMapping> productCategoryMappingList = productRepository.findByProductIdAndCategoryId(
                 productId,categoryId
@@ -119,6 +116,12 @@ public class ProductService {
         return productDetailResponseList;
     }
 
+    public void checkProductAvailability(ProductQuantityRequest productQuantityRequest){
+        // hem ürün hemde stok yeterlı mıktarda mı kontrolu edılıyo.
+        inventoryClient.checkAvailabilityByProductId(productQuantityRequest);
+    }
+
+    // Update
     public String updateProductPartially(Long id, ProductRequest productRequest) {
         Product updatedProduct = getProductOrThrow(id);
 
@@ -133,6 +136,7 @@ public class ProductService {
         return "Successfully";
     }
 
+    // Delete
     public Boolean deleteProductById(Long productId){
         Product deletedCategory = getProductOrThrow(productId);
 

@@ -1,12 +1,15 @@
 package com.semih.productservice.controller;
 
 import com.semih.common.dto.request.CategoryValidationRequest;
+import com.semih.common.dto.request.ProductQuantityRequest;
+import com.semih.common.dto.response.BasketProductResponse;
 import com.semih.productservice.dto.request.ProductRequest;
 import com.semih.productservice.dto.response.ProductDetailResponse;
 import com.semih.productservice.dto.response.ProductInfoResponse;
 import com.semih.productservice.service.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -48,9 +51,21 @@ public class ProductController {
     }
 
     @GetMapping(GET_PRODUCT_DETAILS)
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<ProductDetailResponse>> getAllProductDetail(){
         List<ProductDetailResponse> productDetailResponseList = productService.getAllProductDetail();
         return ResponseEntity.ok(productDetailResponseList);
+    }
+
+    @GetMapping(CHECK_AVAILABILITY_BY_PRODUCT_ID)
+    public ResponseEntity<Void> checkAvailabilityByProductId(@RequestBody ProductQuantityRequest productQuantityRequest){
+        productService.checkProductAvailability(productQuantityRequest);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping(GET_BASKET_PRODUCT_BY_ID)
+    ResponseEntity<BasketProductResponse> getBasketProductResponse(@PathVariable Long productId){
+
     }
 
     @PatchMapping(UPDATE_PRODUCT)

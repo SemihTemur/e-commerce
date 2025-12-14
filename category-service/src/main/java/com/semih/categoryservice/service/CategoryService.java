@@ -39,7 +39,7 @@ public class CategoryService {
 
     //Save
     public CategoryResponse createCategory(CategoryRequest categoryRequest) {
-        Category category = mapToCategoryCreate(categoryRequest);
+        Category category = mapToCategoryEntity(categoryRequest);
         return mapToCategoryResponse(categoryRepository.save(category));
     }
 
@@ -177,7 +177,7 @@ public class CategoryService {
         }
     }
 
-    private Category mapToCategoryCreate(CategoryRequest categoryRequest){
+    private Category mapToCategoryEntity(CategoryRequest categoryRequest){
         return new Category(categoryRequest.categoryName());
     }
 

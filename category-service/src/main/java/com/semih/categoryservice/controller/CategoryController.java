@@ -9,6 +9,7 @@ import com.semih.common.dto.request.ProductCategoryInfoRequest;
 import com.semih.common.dto.response.ProductCategoryInfoResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,6 +32,7 @@ public class CategoryController {
     }
 
     @PostMapping(VALIDATE_CATEGORY_HIERARCHY)
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> validateCategoryHierarchy(
             @RequestBody List<CategoryValidationRequest> categoryValidationRequestList){
         categoryService.validateCategoryHierarchy(categoryValidationRequestList);
@@ -38,6 +40,7 @@ public class CategoryController {
     }
 
     @PostMapping(EXISTS_CATEGORY_WITH_SUBCATEGORIES)
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> existsCategoryWithSubCategories(
             @RequestBody CategoryValidationRequest categoryValidationRequest){
         categoryService.existsCategoryWithSubCategories(categoryValidationRequest);
@@ -45,18 +48,21 @@ public class CategoryController {
     }
 
     @GetMapping(GET_CATEGORY_LIST)
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<CategoryResponse>> getCategoryList(){
         List<CategoryResponse> categoryResponseList = categoryService.getCategoryList();
         return ResponseEntity.ok(categoryResponseList);
     }
 
     @GetMapping(VALIDATE_CATEGORY_EXISTS_BY_ID)
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> validateCategoryExistsById(@PathVariable Long categoryId){
         categoryService.validateCategoryExistsById(categoryId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping(GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID)
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<CategoryWithSubCategoriesResponse> getCategoryWithSubCategoriesById(
             @PathVariable Long categoryId){
         CategoryWithSubCategoriesResponse categoryWithSubCategoriesById = categoryService.getCategoryWithSubCategoriesById(categoryId);
@@ -64,6 +70,7 @@ public class CategoryController {
     }
 
     @PostMapping(GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT)
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<ProductCategoryInfoResponse>> getCategoryWithSubCategoriesForProductList(
             @RequestBody List<ProductCategoryInfoRequest> productCategoryInfoRequests){
         List<ProductCategoryInfoResponse> productCategoryInfoResponses = categoryService

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @RestControllerAdvice
 public class GeneralExceptionHandler {
@@ -28,19 +29,19 @@ public class GeneralExceptionHandler {
         }
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ApiError(400, msg, LocalDateTime.now(), null));
+                .body(new ApiError(400, msg, OffsetDateTime.now(), null));
     }
 
 
     @ExceptionHandler({CategoryNotFoundException.class})
     public ResponseEntity<ApiError> handleCategoryException(CategoryNotFoundException ex) {
-        ApiError apiError = new ApiError(404, ex.getMessage(), LocalDateTime.now(), null);
+        ApiError apiError = new ApiError(404, ex.getMessage(), OffsetDateTime.now(), null);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiError);
     }
 
     @ExceptionHandler({SubCategoryNotFoundException.class})
     public ResponseEntity<ApiError> handleSubCategoryException(SubCategoryNotFoundException ex) {
-        ApiError apiError = new ApiError(404, ex.getMessage(), LocalDateTime.now(), null);
+        ApiError apiError = new ApiError(404, ex.getMessage(), OffsetDateTime.now(), null);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiError);
     }
 }

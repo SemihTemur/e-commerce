@@ -14,6 +14,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -49,7 +50,7 @@ public class GeneralExceptionHandler {
         ApiError apiError = new ApiError(
                 400,
                 message,
-                LocalDateTime.now(),
+                OffsetDateTime.now(),
                 null
         );
 
@@ -73,13 +74,13 @@ public class GeneralExceptionHandler {
             }
 
         });
-        ApiError apiError = new ApiError(400, "Validation error", LocalDateTime.now(), errors);
+        ApiError apiError = new ApiError(400, "Validation error", OffsetDateTime.now(), errors);
         return ResponseEntity.badRequest().body(apiError);
     }
 
     @ExceptionHandler(ProductNotFoundException.class)
     public ResponseEntity<ApiError> handleProductException(ProductNotFoundException ex){
-        ApiError apiError = new ApiError(404,ex.getMessage(), LocalDateTime.now(),null);
+        ApiError apiError = new ApiError(404,ex.getMessage(), OffsetDateTime.now(),null);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiError);
     }
 
@@ -88,7 +89,7 @@ public class GeneralExceptionHandler {
         ApiError apiError = new ApiError(
                 409,
                 ex.getMessage(),
-                LocalDateTime.now(),
+                OffsetDateTime.now(),
                 null
         );
         return ResponseEntity.status(HttpStatus.CONFLICT).body(apiError);
@@ -99,7 +100,7 @@ public class GeneralExceptionHandler {
         ApiError apiError = new ApiError(
                 409,
                 ex.getMessage(),
-                LocalDateTime.now(),
+                OffsetDateTime.now(),
                 null
         );
         return ResponseEntity.status(HttpStatus.CONFLICT).body(apiError);
@@ -107,19 +108,19 @@ public class GeneralExceptionHandler {
 
     @ExceptionHandler({StockNotFoundException.class})
     public ResponseEntity<ApiError> handleStockException(StockNotFoundException ex) {
-        ApiError apiError = new ApiError(404, ex.getMessage(), LocalDateTime.now(), null);
+        ApiError apiError = new ApiError(404, ex.getMessage(), OffsetDateTime.now(), null);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiError);
     }
 
     @ExceptionHandler({CategoryNotFoundException.class})
     public ResponseEntity<ApiError> handleCategoryException(CategoryNotFoundException ex) {
-        ApiError apiError = new ApiError(404, ex.getMessage(), LocalDateTime.now(), null);
+        ApiError apiError = new ApiError(404, ex.getMessage(), OffsetDateTime.now(), null);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiError);
     }
 
     @ExceptionHandler({SubCategoryNotFoundException.class})
     public ResponseEntity<ApiError> handleSubCategoryException(SubCategoryNotFoundException ex) {
-        ApiError apiError = new ApiError(404, ex.getMessage(), LocalDateTime.now(), null);
+        ApiError apiError = new ApiError(404, ex.getMessage(), OffsetDateTime.now(), null);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiError);
     }
 

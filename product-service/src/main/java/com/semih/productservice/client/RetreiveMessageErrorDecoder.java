@@ -7,13 +7,9 @@ import com.semih.common.dto.response.ApiError;
 import com.semih.productservice.exception.NotFoundException;
 import feign.Response;
 import feign.codec.ErrorDecoder;
-import org.apache.commons.io.IOUtils;
-
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 
 public class RetreiveMessageErrorDecoder implements ErrorDecoder {
 

@@ -11,6 +11,7 @@ public class RestApis {
     public static final String INVENTORY = DEVELOPER+VERSIONS+"/inventory";
     public static final String CREATE_INVENTORY_TO_PRODUCT ="/createInventoryToProduct";
     public static final String GET_INVENTORY_BY_PRODUCT_ID = "/getInventoryByProductId/{productId}";
+    public static final String CHECK_AVAILABILITY_BY_PRODUCT_ID = "/checkAvailabilityByProductId";
     public static final String UPDATE_INVENTORY=  "/updateInventory";
     public static final String DELETE_INVENTORY = "/deleteInventory/{productId}";
 }

@@ -10,7 +10,7 @@ public final class RestApis {
     public static final String VERSIONS = "/v1";
     public static final String USER = DEVELOPER + VERSIONS + "/user";
     public static final String LOGIN = "/loginUser";
-    public static final String REGISTER = "/createUser";
+    public static final String REGISTER = "/registerUser";
     public static final String REFRESH_TOKEN = "/refreshToken";
     public static final String RESET_PASSWORD = "/resetPassword";
     public static final String UPDATE_PERMISSIONS = "/updatePermissions";

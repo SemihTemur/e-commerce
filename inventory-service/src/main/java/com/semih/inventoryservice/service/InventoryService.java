@@ -2,6 +2,8 @@ package com.semih.inventoryservice.service;
 
 import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.response.ProductStockResponse;
+import com.semih.common.exception.InventoryException;
+import com.semih.common.exception.ProductNotFoundException;
 import com.semih.common.exception.StockNotFoundException;
 import com.semih.inventoryservice.document.Inventory;
 import com.semih.inventoryservice.repository.InventoryRepository;
@@ -23,6 +25,17 @@ public class InventoryService {
         Inventory inventory = inventoryRepository.findByProductId(productId)
                 .orElseThrow(()-> new StockNotFoundException("Böyle bir stok yoktur"));
         return mapToProductStockResponse(inventory);
+    }
+
+    public void checkAvailabilityByProductId(ProductQuantityRequest productQuantityRequest){
+        Inventory inventory = inventoryRepository.findByProductId(productQuantityRequest.productId())
+                .orElseThrow(() -> new ProductNotFoundException("Ürün bulunamadı. " +
+                        "Lütfen ürün bilgilerini kontrol edin ve tekrar deneyin."));
+
+        if(inventory.getQuantity()<productQuantityRequest.quantity())
+            throw new InventoryException("Mevcut stok miktarınız talep ettiğiniz miktarı karşılamamaktadır. " +
+                    "Lütfen daha az miktar girin.");
+
     }
 
     // buralardakı hata mesajıda

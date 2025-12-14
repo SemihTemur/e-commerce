@@ -24,7 +24,7 @@ public class SubCategoryService {
 
     //Post
     public SubCategoryResponse createSubCategory(SubCategoryCreateRequest subCategoryCreateRequest){
-         SubCategory savedDubCategory = subCategoryRepository.save(mapToSubCategoryCreate(subCategoryCreateRequest));
+         SubCategory savedDubCategory = subCategoryRepository.save(mapToSubCategoryEntity(subCategoryCreateRequest));
          return mapToSubCategoryResponse(savedDubCategory);
     }
 
@@ -73,7 +73,7 @@ public class SubCategoryService {
         return updatedSubCategory;
     }
 
-    private SubCategory mapToSubCategoryCreate(SubCategoryCreateRequest subCategoryCreateRequest){
+    private SubCategory mapToSubCategoryEntity(SubCategoryCreateRequest subCategoryCreateRequest){
         return new SubCategory(subCategoryCreateRequest.subCategoryName(),
                 categoryService.getCategoryOrThrow(subCategoryCreateRequest.categoryId()));
     }

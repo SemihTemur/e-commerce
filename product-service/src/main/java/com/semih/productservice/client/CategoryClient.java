@@ -5,16 +5,13 @@ import com.semih.common.dto.request.ProductCategoryInfoRequest;
 import com.semih.common.dto.response.ProductCategoryInfoResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 import static com.semih.productservice.config.RestApis.*;
 
-@FeignClient(name="category",url = "http://localhost:8085/dev/v1/category")
+@FeignClient(name="CATEGORY-SERVICE",path = CATEGORY)
 public interface CategoryClient {
 
     @PostMapping(VALIDATE_CATEGORY_HIERARCHY)
@@ -29,4 +26,8 @@ public interface CategoryClient {
     @GetMapping(GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT)
     ResponseEntity<List<ProductCategoryInfoResponse>> getCategoryWithSubCategoriesForProductList
             (@RequestBody List<ProductCategoryInfoRequest> productCategoryInfoRequestList);
+
+    @GetMapping(SUB_CATEGORY+VALIDATE_SUB_CATEGORY_EXISTS_BY_ID)
+    ResponseEntity<Void> validateSubCategoryExists(
+            @PathVariable Long categoryId, @PathVariable Long subCategoryId);
 }

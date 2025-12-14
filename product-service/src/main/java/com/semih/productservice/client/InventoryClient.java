@@ -8,14 +8,17 @@ import org.springframework.web.bind.annotation.*;
 
 import static com.semih.productservice.config.RestApis.*;
 
-@FeignClient(name = "inventory",url = "http://localhost:8084/dev/v1/inventory")
+@FeignClient(name = "INVENTORY-SERVICE",path = INVENTORY)
 public interface InventoryClient {
 
-    @PostMapping(CREATE_INVENTORY_TO_PRODUCT)
+    @PostMapping(INVENTORY+CREATE_INVENTORY_TO_PRODUCT)
     ResponseEntity<Void> createInventoryToProduct(@RequestBody ProductQuantityRequest productQuantityRequest);
 
     @GetMapping(GET_INVENTORY_BY_PRODUCT_ID+"/{productId}")
     ResponseEntity<ProductStockResponse> getStockByProductId(@PathVariable Long productId);
+
+    @GetMapping(CHECK_AVAILABILITY_BY_PRODUCT_ID)
+    ResponseEntity<Void> checkAvailabilityByProductId(@RequestBody ProductQuantityRequest productQuantityRequest);
 
     @PutMapping(UPDATE_INVENTORY)
     ResponseEntity<Void> updateInventory(@RequestBody ProductQuantityRequest productQuantityRequest);

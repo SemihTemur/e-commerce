@@ -30,6 +30,12 @@ public class InventoryController {
         return ResponseEntity.ok(productStockResponse);
     }
 
+    @GetMapping(CHECK_AVAILABILITY_BY_PRODUCT_ID)
+    ResponseEntity<Void> checkAvailabilityByProductId(@RequestBody ProductQuantityRequest productQuantityRequest){
+        inventoryService.checkAvailabilityByProductId(productQuantityRequest);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping(UPDATE_INVENTORY)
     public ResponseEntity<Void> updateInventory(@Valid @RequestBody ProductQuantityRequest productQuantityRequest){
         inventoryService.updateInventory(productQuantityRequest);
