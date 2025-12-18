@@ -40,10 +40,6 @@ public class GatewayHeaderAuthorizationFilter extends OncePerRequestFilter {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }
-        else{
-            throw new MissingAuthorizationHeaderException(
-                    "Missing required authorization headers (User_id or User_Roles). Authentication failed.");
-        }
         filterChain.doFilter(request,response);
     }
 }

@@ -20,7 +20,7 @@ public class BasketService {
 
     public Basket findByActiveBasket(){
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userId = (String) authentication.getPrincipal();
+        String userId = authentication.getName();
 
         Optional<Basket> basket = basketRepository.findByStatusAndUserId(BasketStatus.ACTIVE,userId);
 

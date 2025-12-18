@@ -3,6 +3,7 @@ package com.semih.productservice.client;
 import com.semih.common.dto.request.CategoryValidationRequest;
 import com.semih.common.dto.request.ProductCategoryInfoRequest;
 import com.semih.common.dto.response.ProductCategoryInfoResponse;
+import com.semih.productservice.config.FeignTracingConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,7 +12,9 @@ import java.util.List;
 
 import static com.semih.productservice.config.RestApis.*;
 
-@FeignClient(name="CATEGORY-SERVICE",path = CATEGORY)
+@FeignClient(name="CATEGORY-SERVICE",
+        path = CATEGORY,
+        configuration = FeignTracingConfig.class)
 public interface CategoryClient {
 
     @PostMapping(VALIDATE_CATEGORY_HIERARCHY)

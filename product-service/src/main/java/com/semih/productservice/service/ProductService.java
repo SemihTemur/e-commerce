@@ -4,6 +4,7 @@ import com.semih.common.dto.request.CategoryValidationRequest;
 import com.semih.common.dto.request.ProductCategoryInfoRequest;
 import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.request.SubCategoryInfoRequest;
+import com.semih.common.dto.response.BasketProductResponse;
 import com.semih.common.dto.response.ProductCategoryInfoResponse;
 import com.semih.common.dto.response.ProductStockResponse;
 import com.semih.common.exception.CategoryNotFoundException;
@@ -121,6 +122,14 @@ public class ProductService {
         inventoryClient.checkAvailabilityByProductId(productQuantityRequest);
     }
 
+    public BasketProductResponse getBasketProductResponse(Long productId){
+        ProductStockResponse productStockResponse = inventoryClient.getStockByProductId(productId)
+                .getBody();
+        Product product = getProductOrThrow(productId);
+
+        return mapToBasketProductResponse(product,productStockResponse);
+    }
+
     // Update
     public String updateProductPartially(Long id, ProductRequest productRequest) {
         Product updatedProduct = getProductOrThrow(id);
@@ -214,6 +223,29 @@ public class ProductService {
         return productCategoryMappingList;
     }
 
+    private Product mapToCategoryEntity(ProductRequest productRequest){
+        if(productRequest.categoryRequestList()!=null && !productRequest.categoryRequestList().isEmpty()) {
+            return new Product(
+                    productRequest.productName(),
+                    productRequest.productDescription(),
+                    productRequest.productPrice(),
+                    mapToProductCategoryMappingEmbeddableList(productRequest.categoryRequestList())
+            );
+        }
+
+        return new Product(
+                productRequest.productName(),
+                productRequest.productDescription(),
+                productRequest.productPrice()
+        );
+
+    }
+
+    private Product getProductOrThrow(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new ProductNotFoundException("Ürün Bulunamadı !!! "+id));
+    }
+
     //toResponse
     private ProductDetailResponse buildProductDetailResponse(Product product,
                                                              List<ProductCategoryInfoResponse> categories,
@@ -252,28 +284,11 @@ public class ProductService {
         return categoryClient.getCategoryWithSubCategoriesForProductList(productCategoryInfoRequests).getBody();
     }
 
-    private Product mapToCategoryEntity(ProductRequest productRequest){
-        if(productRequest.categoryRequestList()!=null && !productRequest.categoryRequestList().isEmpty()) {
-            return new Product(
-                    productRequest.productName(),
-                    productRequest.productDescription(),
-                    productRequest.productPrice(),
-                    mapToProductCategoryMappingEmbeddableList(productRequest.categoryRequestList())
-            );
-        }
-
-        return new Product(
-                productRequest.productName(),
-                productRequest.productDescription(),
-                productRequest.productPrice()
-        );
-
+    private BasketProductResponse mapToBasketProductResponse(Product product,ProductStockResponse productStockResponse){
+        return new BasketProductResponse(product.getId(),product.getProductName()
+                ,product.getProductPrice(),productStockResponse);
     }
 
-    private Product getProductOrThrow(Long id) {
-        return productRepository.findById(id)
-                .orElseThrow(() -> new ProductNotFoundException("Ürün Bulunamadı !!! "+id));
-    }
 
     public void addCategoryMappingToProduct(Product product, Long categoryId, Long subCategoryId) {
         List<ProductCategoryMapping> productCategoryMappingList = new ArrayList<>();

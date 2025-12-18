@@ -1,3 +1,4 @@
+
 spring:
   cloud:
     gateway:
@@ -8,18 +9,28 @@ spring:
               enabled: true
               filters:
                 - StripPrefix=1
+  application:
+    name: api-gateway
 
 server:
-  port: 0
+  port: 5697
 
 eureka:
   instance:
-    ip-address: true;
+    prefer-ip-address: true
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
     fetch-registry: true
     register-with-eureka: false
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
 
 jwt:
   secret: ${SPRING_JWT_SECRET}

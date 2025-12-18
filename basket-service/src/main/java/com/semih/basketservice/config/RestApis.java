@@ -7,7 +7,11 @@ public class RestApis {
     public static final String VERSIONS = "/v1";
 
     // Basket
-    public static final String BASKET_SERVICE = DEVELOPER+VERSIONS+"/basket-service";
+    public static final String BASKET_SERVICE = DEVELOPER + VERSIONS + "/basket";
+
+    public static final String ADD_BASKET_ITEM = "/items";          // POST
+    public static final String GET_BASKET_ITEM_LIST = "/items";    // GET
+    public static final String DELETE_BASKET_ITEM = "/items/{id}"; // DELETE
 
 
     // Product

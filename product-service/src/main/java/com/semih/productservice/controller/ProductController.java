@@ -57,15 +57,16 @@ public class ProductController {
         return ResponseEntity.ok(productDetailResponseList);
     }
 
-    @GetMapping(CHECK_AVAILABILITY_BY_PRODUCT_ID)
+    @PostMapping(CHECK_AVAILABILITY_BY_PRODUCT_ID)
     public ResponseEntity<Void> checkAvailabilityByProductId(@RequestBody ProductQuantityRequest productQuantityRequest){
         productService.checkProductAvailability(productQuantityRequest);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping(GET_BASKET_PRODUCT_BY_ID)
-    ResponseEntity<BasketProductResponse> getBasketProductResponse(@PathVariable Long productId){
-
+    public ResponseEntity<BasketProductResponse> getBasketProductResponse(@PathVariable Long productId){
+        BasketProductResponse basketProductResponse = productService.getBasketProductResponse(productId);
+        return ResponseEntity.ok(basketProductResponse);
     }
 
     @PatchMapping(UPDATE_PRODUCT)

@@ -4,5 +4,6 @@ import com.semih.common.dto.response.BasketProductResponse;
 
 import java.math.BigDecimal;
 
-public record BasketItemResponse(BasketProductResponse basketProductResponse, BigDecimal lineTotal) {
+public record BasketItemResponse(BasketProductResponse basketProductResponse,Integer quantity,
+                                 BigDecimal lineTotal) {
 }

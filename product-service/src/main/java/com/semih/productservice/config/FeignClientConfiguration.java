@@ -1,5 +1,6 @@
 package com.semih.productservice.config;
 
+import com.semih.productservice.exception.UnauthorizedException;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +31,9 @@ public class FeignClientConfiguration {
                     requestTemplate.header("User_id", userId);
                     requestTemplate.header("User_Roles", rolesString);
                 }
+            }
+            else{
+                throw new UnauthorizedException("Authentication required");
             }
         };
     }
