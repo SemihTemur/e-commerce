@@ -1,4 +1,4 @@
 package com.semih.common.dto.response;
 
-public record ProductStockResponse(Integer availableStock) {
+public record ProductStockResponse(Long productId,Integer availableStock) {
 }

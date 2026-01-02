@@ -6,7 +6,7 @@ spring:
         webflux:
           discovery:
             locator:
-              enabled: true
+              enabled: true # tüm servisleri aç dıyorum
               filters:
                 - StripPrefix=1
   application:
@@ -16,8 +16,6 @@ server:
   port: 5697
 
 eureka:
-  instance:
-    prefer-ip-address: true
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/

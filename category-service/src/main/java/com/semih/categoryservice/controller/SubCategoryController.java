@@ -10,54 +10,56 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.semih.categoryservice.config.RestApis.*;
+import static com.semih.common.config.RestApis.*;
 
 @RestController
-@RequestMapping(SUB_CATEGORY)
+@RequestMapping(SUBCATEGORIES)
 public class SubCategoryController {
+
     private final SubCategoryService subCategoryService;
 
     public SubCategoryController(SubCategoryService subCategoryService) {
         this.subCategoryService = subCategoryService;
     }
 
-    @PostMapping(CREATE_SUBCATEGORY)
-    public ResponseEntity<SubCategoryResponse> createSubCategory(@Valid @RequestBody SubCategoryCreateRequest subCategoryCreateRequest){
-        SubCategoryResponse subCategoryResponse = subCategoryService.createSubCategory(subCategoryCreateRequest);
-        return ResponseEntity.ok(subCategoryResponse);
+    @PostMapping
+    public ResponseEntity<SubCategoryResponse> createSubCategory(
+            @Valid @RequestBody SubCategoryCreateRequest request) {
+
+        return ResponseEntity.ok(subCategoryService.createSubCategory(request));
     }
 
-    @GetMapping(GET_SUBCATEGORY_LIST)
-    public ResponseEntity<List<SubCategoryResponse>> getSubCategoryList(){
-        List<SubCategoryResponse> subCategoryResponseList = subCategoryService.getSubCategoryList();
-        return ResponseEntity.ok(subCategoryResponseList);
+    @GetMapping
+    public ResponseEntity<List<SubCategoryResponse>> getSubCategoryList() {
+        return ResponseEntity.ok(subCategoryService.getSubCategoryList());
     }
 
-    @GetMapping(GET_SUBCATEGORY_BY_ID)
-    public ResponseEntity<SubCategoryResponse> getSubCategoryById(@PathVariable Long subCategoryId){
-        SubCategoryResponse subCategoryResponse = subCategoryService.getSubCategoryById(subCategoryId);
-        return ResponseEntity.ok(subCategoryResponse);
+    @GetMapping("/{subCategoryId}")
+    public ResponseEntity<SubCategoryResponse> getSubCategoryById(
+            @PathVariable Long subCategoryId) {
+
+        return ResponseEntity.ok(subCategoryService.getSubCategoryById(subCategoryId));
     }
 
-    @GetMapping(VALIDATE_SUB_CATEGORY_EXISTS_BY_ID)
+    @GetMapping("/category/{categoryId}/sub/{subCategoryId}/validate")
     public ResponseEntity<Void> validateSubCategoryExists(
-            @PathVariable Long categoryId, @PathVariable Long subCategoryId){
-        subCategoryService.validateSubCategoryExists(categoryId,subCategoryId);
+            @PathVariable Long categoryId,
+            @PathVariable Long subCategoryId) {
+
+        subCategoryService.validateSubCategoryExists(categoryId, subCategoryId);
         return ResponseEntity.noContent().build();
     }
 
-
-    @PutMapping(UPDATE_SUBCATEGORY)
+    @PutMapping("/{subCategoryId}")
     public ResponseEntity<SubCategoryResponse> updateSubCategoryById(
-            @Valid @RequestBody SubCategoryUpdateRequest subCategoryUpdateRequest,
-            @PathVariable Long subCategoryId) {
-        SubCategoryResponse subCategoryResponse = subCategoryService.updateSubCategoryById(subCategoryId, subCategoryUpdateRequest);
-        return ResponseEntity.ok(subCategoryResponse);
+            @PathVariable Long subCategoryId,
+            @Valid @RequestBody SubCategoryUpdateRequest request) {
+
+        return ResponseEntity.ok(subCategoryService.updateSubCategoryById(subCategoryId, request));
     }
 
-
-    @DeleteMapping(DELETE_SUBCATEGORY)
-    public ResponseEntity<Boolean> deleteSubCategoryById(@PathVariable Long subCategoryId){
+    @DeleteMapping("/{subCategoryId}")
+    public ResponseEntity<Boolean> deleteSubCategoryById(@PathVariable Long subCategoryId) {
         return ResponseEntity.ok(subCategoryService.deleteSubCategoryById(subCategoryId));
     }
 }

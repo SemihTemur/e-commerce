@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Set;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
@@ -15,4 +16,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             nativeQuery = true)
     List<ProductCategoryMapping> findByProductIdAndCategoryId(Long productId, Long categoryId);
 
+    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.categoryMappings")
+    List<Product> findAllWithCategories();
+
+    List<Product> findByIdIn(List<Long> productIds);
 }

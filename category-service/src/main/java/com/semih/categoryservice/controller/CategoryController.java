@@ -5,6 +5,7 @@ import com.semih.categoryservice.dto.response.CategoryResponse;
 import com.semih.categoryservice.dto.response.CategoryWithSubCategoriesResponse;
 import com.semih.categoryservice.service.CategoryService;
 import com.semih.common.dto.request.CategoryValidationRequest;
+import com.semih.common.dto.request.ProductCategoryAndSubCategoryRequest;
 import com.semih.common.dto.request.ProductCategoryInfoRequest;
 import com.semih.common.dto.response.ProductCategoryInfoResponse;
 import jakarta.validation.Valid;
@@ -14,86 +15,78 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.semih.categoryservice.config.RestApis.*;
+import static com.semih.common.config.RestApis.*;
 
 @RestController
-@RequestMapping(CATEGORY)
+@RequestMapping(CATEGORIES)
 public class CategoryController {
+
     private final CategoryService categoryService;
 
     public CategoryController(CategoryService categoryService) {
         this.categoryService = categoryService;
     }
 
-    @PostMapping(CREATE_CATEGORY)
-    public ResponseEntity<CategoryResponse> createCategory(@Valid @RequestBody CategoryRequest categoryRequest){
-        CategoryResponse categoryResponse = categoryService.createCategory(categoryRequest);
-        return ResponseEntity.ok(categoryResponse);
+    @PostMapping
+    public ResponseEntity<CategoryResponse> createCategory(
+            @Valid @RequestBody CategoryRequest request) {
+
+        return ResponseEntity.ok(categoryService.createCategory(request));
     }
+
 
     @PostMapping(VALIDATE_CATEGORY_HIERARCHY)
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> validateCategoryHierarchy(
-            @RequestBody List<CategoryValidationRequest> categoryValidationRequestList){
-        categoryService.validateCategoryHierarchy(categoryValidationRequestList);
+            @RequestBody List<CategoryValidationRequest> requests) {
+
+        categoryService.validateCategoryHierarchy(requests);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping(EXISTS_CATEGORY_WITH_SUBCATEGORIES)
+    @PostMapping(EXISTS_WITH_SUBCATEGORIES)
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> existsCategoryWithSubCategories(
-            @RequestBody CategoryValidationRequest categoryValidationRequest){
-        categoryService.existsCategoryWithSubCategories(categoryValidationRequest);
+            @RequestBody CategoryValidationRequest request) {
+
+        categoryService.existsCategoryWithSubCategories(request);
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping(GET_CATEGORY_LIST)
+    @GetMapping
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<List<CategoryResponse>> getCategoryList(){
-        List<CategoryResponse> categoryResponseList = categoryService.getCategoryList();
-        return ResponseEntity.ok(categoryResponseList);
+    public ResponseEntity<List<CategoryResponse>> getCategoryList() {
+        return ResponseEntity.ok(categoryService.getCategoryList());
     }
 
-    @GetMapping(VALIDATE_CATEGORY_EXISTS_BY_ID)
-    @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Void> validateCategoryExistsById(@PathVariable Long categoryId){
-        categoryService.validateCategoryExistsById(categoryId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping(GET_CATEGORY_WITH_SUBCATEGORIES_BY_ID)
+    @GetMapping("/{categoryId}")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<CategoryWithSubCategoriesResponse> getCategoryWithSubCategoriesById(
-            @PathVariable Long categoryId){
-        CategoryWithSubCategoriesResponse categoryWithSubCategoriesById = categoryService.getCategoryWithSubCategoriesById(categoryId);
-        return ResponseEntity.ok(categoryWithSubCategoriesById);
+            @PathVariable Long categoryId) {
+
+        return ResponseEntity.ok(categoryService.getCategoryWithSubCategoriesById(categoryId));
     }
 
-    @PostMapping(GET_CATEGORY_WITH_SUBCATEGORIES_FOR_PRODUCT)
+    @PostMapping(FOR_PRODUCT)
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<List<ProductCategoryInfoResponse>> getCategoryWithSubCategoriesForProductList(
-            @RequestBody List<ProductCategoryInfoRequest> productCategoryInfoRequests){
-        List<ProductCategoryInfoResponse> productCategoryInfoResponses = categoryService
-                .getCategoryWithSubCategoriesForProductList(productCategoryInfoRequests);
-        return ResponseEntity.ok(productCategoryInfoResponses);
+    public ResponseEntity<List<ProductCategoryInfoResponse>> getCategoryWithSubCategoriesForProduct(
+            @RequestBody List<ProductCategoryAndSubCategoryRequest> requests) {
+
+        return ResponseEntity.ok(
+                categoryService.getCategoryWithSubCategoriesForProductList(requests)
+        );
     }
 
-    @GetMapping(GET_ALL_CATEGORY_WITH_SUBCATEGORIES)
-    public ResponseEntity<List<CategoryWithSubCategoriesResponse>> getAllCategoryWithSubCategories(){
-        List<CategoryWithSubCategoriesResponse> categoryWithSubCategoriesResponseList = categoryService.getAllCategoryWithSubCategories();
-        return ResponseEntity.ok(categoryWithSubCategoriesResponseList);
-    }
-
-    @PutMapping(UPDATE_CATEGORY)
+    @PutMapping("/{categoryId}")
     public ResponseEntity<CategoryResponse> updateCategoryById(
-            @PathVariable Long categoryId, @Valid @RequestBody CategoryRequest categoryRequest){
-        CategoryResponse categoryResponse = categoryService.updateCategoryById(categoryId,categoryRequest);
-        return ResponseEntity.ok(categoryResponse);
+            @PathVariable Long categoryId,
+            @Valid @RequestBody CategoryRequest request) {
+
+        return ResponseEntity.ok(categoryService.updateCategoryById(categoryId, request));
     }
 
-    @DeleteMapping(DELETE_CATEGORY)
-    public ResponseEntity<Boolean> deleteCategoryById(@PathVariable Long categoryId){
+    @DeleteMapping("/{categoryId}")
+    public ResponseEntity<Boolean> deleteCategoryById(@PathVariable Long categoryId) {
         return ResponseEntity.ok(categoryService.deleteCategoryById(categoryId));
     }
-
 }

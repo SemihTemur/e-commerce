@@ -1,7 +1,5 @@
 package com.semih.userservice.controller;
 
-import static com.semih.userservice.config.RestApis.*;
-
 import com.semih.userservice.dto.request.*;
 import com.semih.userservice.dto.response.LoginResponse;
 import com.semih.userservice.service.AuthService;
@@ -10,9 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import static com.semih.common.config.RestApis.*;
 
 @RestController
-@RequestMapping(USER)
+@RequestMapping(USERS)
 public class AuthController {
 
     private final AuthService authService;
@@ -21,43 +20,43 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @PostMapping(REGISTER)
-    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest registerRequest){
-        return ResponseEntity.ok(authService.register(registerRequest));
+    // User-specific actions
+    @PostMapping("/register")
+    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request){
+        return ResponseEntity.ok(authService.register(request));
     }
 
-    @PostMapping(LOGIN)
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest){
-        return ResponseEntity.ok(authService.login(loginRequest));
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request){
+        return ResponseEntity.ok(authService.login(request));
     }
 
-    @PostMapping(REFRESH_TOKEN)
-    public ResponseEntity<LoginResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest refreshTokenRequest){
-        return ResponseEntity.ok(authService.refreshToken(refreshTokenRequest));
+    @PostMapping("/refresh-token")
+    public ResponseEntity<LoginResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request){
+        return ResponseEntity.ok(authService.refreshToken(request));
     }
 
-    @PostMapping(RESET_PASSWORD)
-    public ResponseEntity<String> resetPassword(@Valid @RequestBody ChangePasswordRequest changePasswordRequest){
-        return ResponseEntity.ok(authService.resetPassword(changePasswordRequest));
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ChangePasswordRequest request){
+        return ResponseEntity.ok(authService.resetPassword(request));
+    }
+
+    // Admin-specific actions
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/permissions")
+    public ResponseEntity<String> updatePermissions(@Valid @RequestBody UpdateUserRolesRequest request){
+        return ResponseEntity.ok(authService.updatePermissionsById(request));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    @PutMapping(UPDATE_PERMISSIONS)
-    public ResponseEntity<String> updatePermissionsById(@Valid @RequestBody UpdateUserRolesRequest updateUserRolesRequest){
-        return ResponseEntity.ok(authService.updatePermissionsById(updateUserRolesRequest));
+    @DeleteMapping("/permissions")
+    public ResponseEntity<String> deletePermissions(@Valid @RequestBody RemovePermissionsRequest request){
+        return ResponseEntity.ok(authService.deletePermissionById(request));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    @DeleteMapping(DELETE_PERMISSIONS)
-    public ResponseEntity<String> deletePermissionById(@Valid @RequestBody RemovePermissionsRequest
-                                                                   removePermissionsRequest){
-        return ResponseEntity.ok(authService.deletePermissionById(removePermissionsRequest));
-    }
-
-    @PreAuthorize("hasRole('ADMIN')")
-    @DeleteMapping(DELETE_USER)
-    public ResponseEntity<String> deleteUserById(@PathVariable Long id){
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteUser(@PathVariable Long id){
         return ResponseEntity.ok(authService.deleteUserById(id));
     }
-
 }

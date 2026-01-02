@@ -7,9 +7,7 @@ import com.semih.categoryservice.dto.response.SubCategoryResponse;
 import com.semih.categoryservice.entity.Category;
 import com.semih.categoryservice.entity.SubCategory;
 import com.semih.categoryservice.repository.CategoryRepository;
-import com.semih.common.dto.request.CategoryValidationRequest;
-import com.semih.common.dto.request.ProductCategoryInfoRequest;
-import com.semih.common.dto.request.SubCategoryInfoRequest;
+import com.semih.common.dto.request.*;
 import com.semih.common.dto.response.ProductCategoryInfoResponse;
 import com.semih.common.dto.response.SubCategoryInfoResponse;
 import com.semih.common.exception.CategoryNotFoundException;
@@ -63,30 +61,54 @@ public class CategoryService {
         return mapToCategoryWithSubCategoriesResponse(category);
     }
 
-    @Transactional(readOnly = true)
+//    @Transactional(readOnly = true)
+//    public List<ProductCategoryInfoResponse> getCategoryWithSubCategoriesForProductList(
+//            List<ProductCategoryInfoRequest> productCategoryInfoRequests)  {
+//
+//        List<ProductCategoryInfoResponse> productCategoryResponses = new ArrayList<>();
+//
+//        for(ProductCategoryInfoRequest productCategoryInfoRequest:productCategoryInfoRequests){
+//            Category category = getCategoryOrThrow(productCategoryInfoRequest.categoryId());
+//
+//            Set<Long> subCategoryRequestIdList = productCategoryInfoRequest.subCategoryInfoRequests().stream()
+//                    .map(SubCategoryInfoRequest::subCategoryId)
+//                    .collect(Collectors.toSet());
+//
+//            List<SubCategoryInfoResponse>  subCategoryInfoResponseList = getSubCategoryInfoResponseList(category,
+//                    subCategoryRequestIdList);
+//
+//            productCategoryResponses.add(new ProductCategoryInfoResponse(category.getId(),category.getCategoryName()
+//                    ,subCategoryInfoResponseList));
+//
+//        }
+//
+//        return productCategoryResponses;
+//    }
+
     public List<ProductCategoryInfoResponse> getCategoryWithSubCategoriesForProductList(
-            List<ProductCategoryInfoRequest> productCategoryInfoRequests)  {
+            List<ProductCategoryAndSubCategoryRequest> requests) {
+        // 1. Tüm ana kategori ID'lerini topla
+        Set<Long> categoryIds = requests.stream()
+                .map(ProductCategoryAndSubCategoryRequest::categoryId)
+                .collect(Collectors.toSet());
 
-        List<ProductCategoryInfoResponse> productCategoryResponses = new ArrayList<>();
+        // 2. TÜM alt kategori ID'lerini tek bir Set'te topla (Sorguda filtrelemek için)
+        Set<Long> allSubCategoryIds = requests.stream()
+                .flatMap(r -> r.subCategoryIdList().stream())
+                .collect(Collectors.toSet());
 
-        for(ProductCategoryInfoRequest productCategoryInfoRequest:productCategoryInfoRequests){
-            Category category = getCategoryOrThrow(productCategoryInfoRequest.categoryId());
+        // 3. DB'den SADECE o alt kategorileri içeren ana kategorileri getir
+        List<Category> categories = categoryRepository.findSpecificCategoriesAndSubCategories(categoryIds, allSubCategoryIds);
 
-            Set<Long> subCategoryRequestIdList = productCategoryInfoRequest.subCategoryInfoRequests().stream()
-                    .map(SubCategoryInfoRequest::subCategoryId)
-                    .collect(Collectors.toSet());
+        // 4. Response'a çevir
+        return categories.stream().map(category -> {
+            List<SubCategoryInfoResponse> subResponses = category.getSubCategory().stream()
+                    .map(sc -> new SubCategoryInfoResponse(sc.getId(), sc.getSubCategoryName()))
+                    .toList();
 
-            List<SubCategoryInfoResponse>  subCategoryInfoResponseList = getSubCategoryInfoResponseList(category,
-                    subCategoryRequestIdList);
-
-            productCategoryResponses.add(new ProductCategoryInfoResponse(category.getId(),category.getCategoryName()
-                    ,subCategoryInfoResponseList));
-
-        }
-
-        return productCategoryResponses;
+            return new ProductCategoryInfoResponse(category.getId(), category.getCategoryName(), subResponses);
+        }).toList();
     }
-
     private List<SubCategoryInfoResponse> getSubCategoryInfoResponseList(Category category,
                                                                          Set<Long> subCategoryRequestIdList){
         List<SubCategoryInfoResponse> subCategoryInfoResponseList = new ArrayList<>();

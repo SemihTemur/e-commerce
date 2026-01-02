@@ -25,7 +25,7 @@ public class BasketItem {
     private LocalDateTime updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "basket_id")
+    @JoinColumn(name = "basket_id",nullable = false)
     private Basket basket;
 
     public BasketItem() {
@@ -34,6 +34,10 @@ public class BasketItem {
     public BasketItem(Long productId, Integer quantity) {
         this.productId = productId;
         this.quantity = quantity;
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public Long getProductId() {
@@ -59,6 +63,8 @@ public class BasketItem {
     public void setBasket(Basket basket) {
         this.basket = basket;
     }
+
+
 
 
 }

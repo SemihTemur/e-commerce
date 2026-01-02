@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -18,6 +19,7 @@ public class Basket {
 
     private String userId;
 
+    @Enumerated(EnumType.STRING)
     private BasketStatus status;
 
     @CreationTimestamp
@@ -26,12 +28,29 @@ public class Basket {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @OneToMany(mappedBy = "basket", fetch = FetchType.LAZY,cascade = {CascadeType.ALL},
+            orphanRemoval = true)
+    private List<BasketItem> basketItems = new ArrayList<>();
+
+
     public Basket() {
     }
 
     public Basket(String userId, BasketStatus status) {
         this.userId = userId;
         this.status = status;
+    }
+
+    public void addItem(BasketItem basketItem){
+        if(basketItem!=null){
+            basketItems.add(basketItem);
+            basketItem.setBasket(this);
+        }
+    }
+
+    public void removeItem(BasketItem basketItem) {
+        basketItems.remove(basketItem);
+        basketItem.setBasket(null);
     }
 
     public String getUserId() {
@@ -48,5 +67,13 @@ public class Basket {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public List<BasketItem> getBasketItems() {
+        return basketItems;
+    }
+
+    public void setStatus(BasketStatus status) {
+        this.status = status;
     }
 }

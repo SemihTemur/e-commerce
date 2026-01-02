@@ -7,27 +7,35 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import static com.semih.productservice.config.RestApis.*;
+import java.util.List;
+import java.util.Map;
 
-@FeignClient(name = "INVENTORY-SERVICE",
-        path = INVENTORY,
-        configuration = FeignTracingConfig.class)
+import static com.semih.common.config.RestApis.*;
+
+@FeignClient(
+        name = "INVENTORY-SERVICE",
+        path = INVENTORIES,
+        configuration = FeignTracingConfig.class
+)
 public interface InventoryClient {
 
-    @PostMapping(INVENTORY+CREATE_INVENTORY_TO_PRODUCT)
-    ResponseEntity<Void> createInventoryToProduct(@RequestBody ProductQuantityRequest productQuantityRequest);
+    @PostMapping(CREATE_TO_PRODUCT)
+    ResponseEntity<Void> createInventoryToProduct(@RequestBody ProductQuantityRequest request);
 
-    @GetMapping(GET_INVENTORY_BY_PRODUCT_ID+"/{productId}")
-    ResponseEntity<ProductStockResponse> getStockByProductId(@PathVariable Long productId);
+    @PostMapping(STOCKS)
+    ResponseEntity<List<ProductStockResponse>> getStockForProducts(@RequestBody List<Long> productIds);
 
-    @PostMapping(CHECK_AVAILABILITY_BY_PRODUCT_ID)
-    ResponseEntity<Void> checkAvailabilityByProductId(@RequestBody ProductQuantityRequest productQuantityRequest);
+    @PostMapping(VALIDATE_FOR_CHECKOUT)
+     ResponseEntity<Void> checkAvailabilityByProductIds(List<ProductQuantityRequest>
+                                                                      productQuantityRequests);
 
-    @PutMapping(UPDATE_INVENTORY)
-    ResponseEntity<Void> updateInventory(@RequestBody ProductQuantityRequest productQuantityRequest);
+    @PostMapping(CHECK_AVAILABILITY)
+    ResponseEntity<Void> checkAvailabilityByProductId(@RequestBody ProductQuantityRequest request);
 
-    @DeleteMapping(DELETE_INVENTORY+"/{productId}")
+    @PutMapping(UPDATE)
+    ResponseEntity<Void> updateInventory(@RequestBody ProductQuantityRequest request);
+
+    @DeleteMapping(DELETE_BY_PRODUCT_ID)
     ResponseEntity<Void> deleteInventoryByProductId(@PathVariable Long productId);
-
-
 }
+

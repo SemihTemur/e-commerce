@@ -1,12 +1,7 @@
 package com.semih.productservice.service;
 
-import com.semih.common.dto.request.CategoryValidationRequest;
-import com.semih.common.dto.request.ProductCategoryInfoRequest;
-import com.semih.common.dto.request.ProductQuantityRequest;
-import com.semih.common.dto.request.SubCategoryInfoRequest;
-import com.semih.common.dto.response.BasketProductResponse;
-import com.semih.common.dto.response.ProductCategoryInfoResponse;
-import com.semih.common.dto.response.ProductStockResponse;
+import com.semih.common.dto.request.*;
+import com.semih.common.dto.response.*;
 import com.semih.common.exception.CategoryNotFoundException;
 import com.semih.common.exception.SubCategoryNotFoundException;
 import com.semih.productservice.client.CategoryClient;
@@ -19,12 +14,8 @@ import com.semih.productservice.entity.ProductCategoryMapping;
 import com.semih.productservice.exception.ProductNotFoundException;
 import com.semih.productservice.repository.ProductRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,7 +24,8 @@ public class ProductService {
     private final CategoryClient categoryClient;
     private final InventoryClient inventoryClient;
 
-    public ProductService(ProductRepository productRepository, CategoryClient categoryClient, InventoryClient inventoryClient) {
+    public ProductService(ProductRepository productRepository, CategoryClient categoryClient,
+                          InventoryClient inventoryClient) {
         this.productRepository = productRepository;
         this.categoryClient = categoryClient;
         this.inventoryClient = inventoryClient;
@@ -100,34 +92,109 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly=true)
-    public List<ProductDetailResponse> getAllProductDetail(){
-        List<Product> productList = productRepository.findAll();
-        List<ProductDetailResponse> productDetailResponseList = new ArrayList<>();
+    public List<ProductLineItemResponse> priceProductsForCheckout(
+            List<ProductQuantityRequest> productQuantityRequests) {
 
-        for(Product product:productList){
-            List<ProductCategoryInfoResponse> categories = addCategoryResponses(product);
+       inventoryClient.checkAvailabilityByProductIds(productQuantityRequests);
 
-            ProductStockResponse stock = inventoryClient.getStockByProductId(product.getId()).getBody();
+        List<Long> productIds = productQuantityRequests
+                .stream()
+                .map(ProductQuantityRequest::productId)
+                .toList();
 
-            ProductDetailResponse detailResponse = buildProductDetailResponse(product, categories, stock);
-            productDetailResponseList.add(detailResponse);
+        List<Product> productList = productRepository.findByIdIn(productIds);
+
+        validateAllProductsExist(productIds, productList);
+
+        Map<Long,Integer> productQuantityRequestMap = productQuantityRequests
+                .stream()
+                .collect(Collectors.toMap(
+                        ProductQuantityRequest::productId,
+                        ProductQuantityRequest::quantity
+                ));
+
+        return mapToProductLineItemResponse(productList, productQuantityRequestMap);
+    }
+
+
+    public List<ProductDetailResponse> getAllProductDetail() {
+        List<Product> productList = productRepository.findAllWithCategories();
+
+        List<Long> productIdList = productList.stream().map(Product::getId).toList();
+        List<ProductStockResponse> stockList = inventoryClient.getStockForProducts(productIdList)
+                .getBody();
+
+        // Map'i nesne olarak tutuyoruz
+        Map<Long, ProductStockResponse> stockMap = (stockList != null) ? stockList.stream()
+                .collect(Collectors.toMap(ProductStockResponse::productId, s -> s)) : new HashMap<>();
+
+        // Kategori Request Hazırlama (Aynı Mantık)
+        Map<Long, Set<Long>> globalCategoryRequestMap = new HashMap<>();
+        for (Product product : productList) {
+            for (ProductCategoryMapping mapping : product.getCategoryMappings()) {
+                globalCategoryRequestMap.computeIfAbsent(mapping.getCategoryId(), k -> new HashSet<>())
+                        .add(mapping.getSubCategoryId());
+            }
         }
 
-        return productDetailResponseList;
+        List<ProductCategoryAndSubCategoryRequest> requests = globalCategoryRequestMap.entrySet().stream()
+                .map(e -> new ProductCategoryAndSubCategoryRequest(e.getKey(), e.getValue()))
+                .toList();
+
+        List<ProductCategoryInfoResponse> categoryInfoList = categoryClient
+                .getCategoryWithSubCategoriesForProductList(requests).getBody();
+
+        Map<Long, ProductCategoryInfoResponse> categoryMap = (categoryInfoList != null) ?
+                categoryInfoList.stream()
+                .collect(Collectors.toMap(ProductCategoryInfoResponse::categoryId, c -> c))
+                : new HashMap<>();
+
+        // BİRLEŞTİRME
+        return productList.stream().map(product -> {
+            ProductInfoResponse info = new ProductInfoResponse(
+                    product.getId(), product.getProductName(), product.getProductPrice(),
+                    product.getCreatedAt(), product.getUpdatedAt());
+
+            // Stok bilgisini nesne olarak çekiyoruz
+            ProductStockResponse stock = stockMap.getOrDefault(product.getId(),
+                    new ProductStockResponse(product.getId(), 0));
+
+            // Gruplanmış Kategoriler
+            Map<Long, List<Long>> productSpecificMapping = product.getCategoryMappings().stream()
+                    .collect(Collectors.groupingBy(ProductCategoryMapping::getCategoryId,
+                            Collectors.mapping(ProductCategoryMapping::getSubCategoryId, Collectors.toList())));
+
+            List<ProductCategoryInfoResponse> finalCategories = productSpecificMapping.entrySet().stream()
+                    .map(entry -> {
+                        ProductCategoryInfoResponse fullCategory = categoryMap.get(entry.getKey());
+                        if (fullCategory == null) return null;
+
+                        List<SubCategoryInfoResponse> filteredSubs = fullCategory.subCategoryInfoResponses().stream()
+                                .filter(sub -> entry.getValue().contains(sub.subCategoryId()))
+                                .toList();
+
+                        return new ProductCategoryInfoResponse(fullCategory.categoryId(), fullCategory.categoryName(), filteredSubs);
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            return new ProductDetailResponse(info, product.getProductDescription(), stock, finalCategories);
+        }).toList();
     }
 
-    public void checkProductAvailability(ProductQuantityRequest productQuantityRequest){
-        // hem ürün hemde stok yeterlı mıktarda mı kontrolu edılıyo.
-        inventoryClient.checkAvailabilityByProductId(productQuantityRequest);
-    }
+//    public void validateProductsAvailability(List<ProductQuantityRequest> requests){
+//        // hem ürün hemde stok yeterlı mıktarda mı kontrolu edılıyo.
+//        inventoryClient.checkProductsAvailability(requests);
+//    }
 
-    public BasketProductResponse getBasketProductResponse(Long productId){
-        ProductStockResponse productStockResponse = inventoryClient.getStockByProductId(productId)
-                .getBody();
-        Product product = getProductOrThrow(productId);
+    public List<BasketProductResponse> getBasketProductResponse(List<Long> productIdList){
+        List<Product> products = findByProductIdIn(productIdList);
 
-        return mapToBasketProductResponse(product,productStockResponse);
+        List<ProductStockResponse> productStockResponses = inventoryClient.
+                    getStockForProducts(productIdList)
+                    .getBody();
+
+        return mapToBasketProductResponse(products,productStockResponses);
     }
 
     // Update
@@ -210,9 +277,10 @@ public class ProductService {
     }
 
     //toEntity
-    private List<ProductCategoryMapping> mapToProductCategoryMappingEmbeddableList(List<CategoryValidationRequest>
-                                                                                       categoryRequestList){
+    private List<ProductCategoryMapping> mapToProductCategoryMappingEmbeddableList(
+            List<CategoryValidationRequest> categoryRequestList){
         List<ProductCategoryMapping> productCategoryMappingList = new ArrayList<>();
+
         for(CategoryValidationRequest categoryValidationRequest:categoryRequestList){
             for(Long subCategoryId:categoryValidationRequest.subCategoriesId())
                 productCategoryMappingList.add(new ProductCategoryMapping(
@@ -246,57 +314,62 @@ public class ProductService {
                 .orElseThrow(() -> new ProductNotFoundException("Ürün Bulunamadı !!! "+id));
     }
 
-    //toResponse
-    private ProductDetailResponse buildProductDetailResponse(Product product,
-                                                             List<ProductCategoryInfoResponse> categories,
-                                                             ProductStockResponse stockResponse) {
+    private List<Product> findByProductIdIn(List<Long> productIds){
+        List<Product> products = productRepository.findByIdIn(productIds);
 
-        ProductInfoResponse productInfoResponse = mapToProductInfoResponse(product);
-        return new ProductDetailResponse(
-                productInfoResponse,
-                product.getProductDescription(),
-                stockResponse,
-                categories
-        );
+        if(products.size()!=productIds.size())
+            throw new RuntimeException("Eksik ürün var"); // BasketItemNotFoundException
+
+        return products;
     }
 
+    //toResponse
     private ProductInfoResponse mapToProductInfoResponse(Product product){
         return new ProductInfoResponse(product.getId(),product.getProductName(),product.getProductPrice(),
                 product.getCreatedAt(),product.getUpdatedAt());
     }
 
-    private List<ProductCategoryInfoResponse> addCategoryResponses(
-            Product product) {
+    private List<BasketProductResponse> mapToBasketProductResponse(
+            List<Product> products, List<ProductStockResponse> productStockResponses){
+       List<BasketProductResponse> basketProductResponses = new ArrayList<>();
 
-        Map<Long,List<Long>> map = new HashMap<>();
-        for(ProductCategoryMapping mapping : product.getCategoryMappings()) {
-           map.computeIfAbsent(mapping.getCategoryId(),k-> new ArrayList<>()).add(mapping.getSubCategoryId());
+        for(int i = 0;i<products.size();i++){
+           basketProductResponses.add(
+                   new BasketProductResponse(
+                           products.get(i).getId(),
+                           products.get(i).getProductName(),
+                           products.get(i).getProductPrice(),
+                           productStockResponses.get(i)
+                   )
+           );
         }
 
-        List<ProductCategoryInfoRequest> productCategoryInfoRequests = new ArrayList<>();
-        for(Map.Entry<Long,List<Long>> entry: map.entrySet()){
-            List<SubCategoryInfoRequest> subCategoryInfoRequests = new ArrayList<>();
-            for(Long subCategoryId:entry.getValue())
-                subCategoryInfoRequests.add(new SubCategoryInfoRequest(subCategoryId));
-            productCategoryInfoRequests.add(new ProductCategoryInfoRequest(entry.getKey(),subCategoryInfoRequests));
+        return basketProductResponses;
+    }
+
+    private List<ProductLineItemResponse> mapToProductLineItemResponse(List<Product> productList,
+                                                                       Map<Long, Integer>
+                                                                               productQuantityRequestMap){
+        List<ProductLineItemResponse> productLineItemResponseList = new ArrayList<>();
+
+        for(Product product:productList){
+            productLineItemResponseList.add(new ProductLineItemResponse(
+                    product.getId(),
+                    product.getProductName(),
+                    product.getProductPrice(),
+                    productQuantityRequestMap.get(product.getId())
+            ));
         }
 
-        return categoryClient.getCategoryWithSubCategoriesForProductList(productCategoryInfoRequests).getBody();
+        return productLineItemResponseList;
     }
 
-    private BasketProductResponse mapToBasketProductResponse(Product product,ProductStockResponse productStockResponse){
-        return new BasketProductResponse(product.getId(),product.getProductName()
-                ,product.getProductPrice(),productStockResponse);
-    }
-
-
-    public void addCategoryMappingToProduct(Product product, Long categoryId, Long subCategoryId) {
+    private void addCategoryMappingToProduct(Product product, Long categoryId, Long subCategoryId) {
         List<ProductCategoryMapping> productCategoryMappingList = new ArrayList<>();
         productCategoryMappingList.add(new ProductCategoryMapping(categoryId, subCategoryId));
 
         product.getCategoryMappings().addAll(productCategoryMappingList);
     }
-
 
     private void updateBasicFields(Product product, ProductRequest request) {
         if (request.productName() != null && !request.productName().isBlank()) {
@@ -319,14 +392,33 @@ public class ProductService {
 
         List<ProductCategoryMapping> mappings = product.getCategoryMappings();
         mappings.addAll(mapToProductCategoryMappingEmbeddableList(request.categoryRequestList()));
+
         product.setCategoryMappings(mappings);
     }
 
     private void updateQuantity(Product product, ProductRequest request) {
         if (request.quantity() == null) return;
 
-        ProductQuantityRequest quantityRequest = mapToProductQuantityRequest(product.getId(), request.quantity());
+        ProductQuantityRequest quantityRequest = mapToProductQuantityRequest(product.getId(),
+                request.quantity());
+
         inventoryClient.createInventoryToProduct(quantityRequest);
+    }
+
+    private void validateAllProductsExist(List<Long> requestedProductIds, List<Product> foundProducts) {
+        Set<Long> requestedIds = new HashSet<>(requestedProductIds);
+
+        Set<Long> foundIds = foundProducts.stream()
+                .map(Product::getId)
+                .collect(Collectors.toSet());
+
+        if (!foundIds.containsAll(requestedIds)) {
+            requestedIds.removeAll(foundIds);
+
+            throw new ProductNotFoundException(
+                    "Product(s) not found: " + requestedIds
+            );
+        }
     }
 
 }

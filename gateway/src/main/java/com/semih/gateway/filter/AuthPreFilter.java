@@ -27,7 +27,7 @@ public class AuthPreFilter implements GlobalFilter {
     private final JwtTokenService jwtTokenService;
     private final RedisTemplate<String,Object> redisTemplate;
     private final List<String> PUBLIC_URIS = List.of(
-            "/loginUser","/registerUser","/refreshToken"
+            "/login","/register","/refresh-token"
     );
 
     public AuthPreFilter(JwtTokenService jwtTokenService, RedisTemplate<String, Object> redisTemplate) {

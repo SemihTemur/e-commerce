@@ -1,8 +1,8 @@
 package com.semih.productservice.controller;
 
-import com.semih.common.dto.request.CategoryValidationRequest;
 import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.response.BasketProductResponse;
+import com.semih.common.dto.response.ProductLineItemResponse;
 import com.semih.productservice.dto.request.ProductRequest;
 import com.semih.productservice.dto.response.ProductDetailResponse;
 import com.semih.productservice.dto.response.ProductInfoResponse;
@@ -13,84 +13,89 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
-import static com.semih.productservice.config.RestApis.*;
+import static com.semih.common.config.RestApis.*;
 
 @RestController
-@RequestMapping(PRODUCT)
+@RequestMapping(PRODUCTS)
 public class ProductController {
+
     private final ProductService productService;
 
     public ProductController(ProductService productService) {
         this.productService = productService;
     }
 
-    @PostMapping(CREATE_PRODUCT)
-    public ResponseEntity<String> createProduct(@Valid @RequestBody ProductRequest productRequest){
-        String message = productService.createProduct(productRequest);
-        return ResponseEntity.ok(message);
+    @PostMapping
+    public ResponseEntity<String> createProduct(@Valid @RequestBody ProductRequest request) {
+        return ResponseEntity.ok(productService.createProduct(request));
     }
 
-    @PostMapping(ADD_CATEGORY_TO_PRODUCT_BY_ID)
-    public ResponseEntity<String> addCategoryToProduct(@PathVariable Long productId,@PathVariable Long categoryId){
-        String message = productService.addCategoryToProduct(productId,categoryId);
-        return ResponseEntity.ok(message);
+    @PostMapping("/{productId}/categories/{categoryId}")
+    public ResponseEntity<String> addCategoryToProduct(
+            @PathVariable Long productId, @PathVariable Long categoryId) {
+
+        return ResponseEntity.ok(productService.addCategoryToProduct(productId, categoryId));
     }
 
-    @PostMapping(ADD_SUBCATEGORY_TO_PRODUCT)
+    @PostMapping("/{productId}/categories/{categoryId}/subcategories/{subCategoryId}")
     public ResponseEntity<String> addSubCategoryToProduct(
-            @PathVariable Long productId,@PathVariable Long categoryId,@PathVariable Long subCategoryId ){
-        String message = productService.addSubCategoryToProduct(productId,categoryId,subCategoryId);
-        return ResponseEntity.ok(message);
+            @PathVariable Long productId, @PathVariable Long categoryId, @PathVariable Long subCategoryId) {
+
+        return ResponseEntity.ok(productService.addSubCategoryToProduct(productId, categoryId, subCategoryId));
     }
 
-    @GetMapping(GET_PRODUCT_INFO)
-    public ResponseEntity<List<ProductInfoResponse>> getAllProductInfo(){
-        List<ProductInfoResponse> productInfoResponseList = productService.getAllProductInfo();
-        return ResponseEntity.ok(productInfoResponseList);
+    @PostMapping("/basket/products")
+    public ResponseEntity<List<BasketProductResponse>> getBasketProducts(
+            @RequestBody List<Long> productIdList) {
+        return ResponseEntity.ok(
+                productService.getBasketProductResponse(productIdList)
+        );
     }
 
-    @GetMapping(GET_PRODUCT_DETAILS)
+    @PostMapping(CHECKOUT_PRICE)
+    public ResponseEntity<List<ProductLineItemResponse>> priceProductsForCheckout(List<ProductQuantityRequest>
+                                                                          productQuantityRequests){
+        List<ProductLineItemResponse> productLineItemResponseList = productService.
+                priceProductsForCheckout(productQuantityRequests);
+        return ResponseEntity.ok(productLineItemResponseList);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ProductInfoResponse>> getAllProductInfo() {
+        return ResponseEntity.ok(productService.getAllProductInfo());
+    }
+
+    @GetMapping("/details")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<List<ProductDetailResponse>> getAllProductDetail(){
-        List<ProductDetailResponse> productDetailResponseList = productService.getAllProductDetail();
-        return ResponseEntity.ok(productDetailResponseList);
+    public ResponseEntity<List<ProductDetailResponse>> getAllProductDetail() {
+        return ResponseEntity.ok(productService.getAllProductDetail());
     }
 
-    @PostMapping(CHECK_AVAILABILITY_BY_PRODUCT_ID)
-    public ResponseEntity<Void> checkAvailabilityByProductId(@RequestBody ProductQuantityRequest productQuantityRequest){
-        productService.checkProductAvailability(productQuantityRequest);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping(GET_BASKET_PRODUCT_BY_ID)
-    public ResponseEntity<BasketProductResponse> getBasketProductResponse(@PathVariable Long productId){
-        BasketProductResponse basketProductResponse = productService.getBasketProductResponse(productId);
-        return ResponseEntity.ok(basketProductResponse);
-    }
-
-    @PatchMapping(UPDATE_PRODUCT)
+    @PatchMapping("/{productId}")
     public ResponseEntity<String> updateProductPartially(
-            @PathVariable Long id, @Valid @RequestBody ProductRequest productRequest){
-        String message = productService.updateProductPartially(id, productRequest);
-        return ResponseEntity.ok(message);
+            @PathVariable Long productId, @Valid @RequestBody ProductRequest request) {
+
+        return ResponseEntity.ok(productService.updateProductPartially(productId, request));
     }
 
-    @DeleteMapping(DELETE_PRODUCT_BY_ID)
-    public ResponseEntity<Boolean> deleteProductById(@PathVariable Long productId){
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<Boolean> deleteProductById(@PathVariable Long productId) {
         return ResponseEntity.ok(productService.deleteProductById(productId));
     }
 
-    @DeleteMapping(DELETE_PRODUCT_BY_CATEGORY_ID)
-    public ResponseEntity<Boolean> deleteProductByCategoryId(
-            @PathVariable Long productId, @PathVariable Long categoryId){
+    @DeleteMapping("/{productId}/categories/{categoryId}")
+    public ResponseEntity<Boolean> deleteProductByCategory(
+            @PathVariable Long productId, @PathVariable Long categoryId) {
+
         return ResponseEntity.ok(productService.deleteProductByCategoryId(productId, categoryId));
     }
 
-    @DeleteMapping(DELETE_PRODUCT_BY_SUB_CATEGORY_ID)
-    public ResponseEntity<Boolean> deleteProductBySubCategoryId(
-            @PathVariable Long productId, @PathVariable Long subCategoryId){
+    @DeleteMapping("/{productId}/subcategories/{subCategoryId}")
+    public ResponseEntity<Boolean> deleteProductBySubCategory(
+            @PathVariable Long productId, @PathVariable Long subCategoryId) {
+
         return ResponseEntity.ok(productService.deleteProductBySubCategoryId(productId, subCategoryId));
     }
-
 }

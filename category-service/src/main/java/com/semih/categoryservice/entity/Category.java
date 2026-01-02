@@ -5,6 +5,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -16,8 +17,9 @@ public class Category {
     @Column(nullable = false,unique = true)
     private String categoryName;
 
-    @OneToMany(mappedBy = "category", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY,orphanRemoval = true)
-    private List<SubCategory> subCategory;
+    @OneToMany(mappedBy = "category", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY,
+            orphanRemoval = true)
+    private List<SubCategory> subCategory = new ArrayList<>();
 
     @Column(updatable = false)
     @CreationTimestamp
