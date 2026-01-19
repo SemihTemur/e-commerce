@@ -17,7 +17,6 @@ import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.response.BasketProductResponse;
 import com.semih.common.dto.response.ProductLineItemResponse;
 import com.semih.common.exception.StockNotFoundException;
-import org.aspectj.weaver.ast.Or;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -118,18 +117,26 @@ public class BasketService {
         return "Successfully";
     }
 
-    private Basket findOrCreateActiveBasket() {
+    private String getUserId(){
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userId = authentication.getName();
+
+        if(authentication==null || authentication.getPrincipal()==null){
+            throw new RuntimeException("Böyle bir Kullanıcı yoktur");
+        }
+
+        return (String) authentication.getPrincipal();
+    }
+
+    private Basket findOrCreateActiveBasket() {
+        String userId = getUserId();
 
         Optional<Basket> basket = basketRepository.findActiveBasketWithItems(BasketStatus.ACTIVE, userId);
 
         return basket.orElseGet(() -> basketRepository.save(new Basket(userId, BasketStatus.ACTIVE)));
     }
 
-    private Basket findActiveBasketOrNull() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userId = authentication.getName();
+    private Basket findActiveBasketOrNull() {;
+        String userId = getUserId();
 
         Optional<Basket> basket = basketRepository.findActiveBasketWithItems(BasketStatus.ACTIVE, userId);
         return basket.orElseThrow(() -> new BasketNotFoundException("Aktif Basket Bulunamadı"));

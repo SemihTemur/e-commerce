@@ -23,14 +23,6 @@ public class InventoryController {
         this.inventoryService = inventoryService;
     }
 
-    @PostMapping(CREATE_TO_PRODUCT)
-    public ResponseEntity<Void> createInventoryToProduct(
-            @Valid @RequestBody ProductQuantityRequest request) {
-
-        inventoryService.createInventoryToProduct(request);
-        return ResponseEntity.noContent().build();
-    }
-
     @PostMapping(STOCKS)
     public ResponseEntity<List<ProductStockResponse>> getStockForProducts(
             @RequestBody List<Long> productIds) {
@@ -49,26 +41,10 @@ public class InventoryController {
     }
 
     @PostMapping(VALIDATE_FOR_CHECKOUT)
-    public ResponseEntity<Void> checkAvailabilityByProductIds(List<ProductQuantityRequest>
+    public ResponseEntity<Void> checkAvailabilityByProductIds(@RequestBody List<ProductQuantityRequest>
                                                                           productQuantityRequests){
         inventoryService.checkAvailabilityByProductIds(productQuantityRequests);
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping(UPDATE)
-    public ResponseEntity<Void> updateInventory(
-            @Valid @RequestBody ProductQuantityRequest request) {
-
-        inventoryService.updateInventory(request);
-        return ResponseEntity.noContent().build();
-    }
-
-
-    @DeleteMapping(DELETE_BY_PRODUCT_ID)
-    public ResponseEntity<Void> deleteInventoryByProductId(
-            @PathVariable Long productId) {
-
-        inventoryService.deleteInventoryByProductId(productId);
-        return ResponseEntity.noContent().build();
-    }
 }

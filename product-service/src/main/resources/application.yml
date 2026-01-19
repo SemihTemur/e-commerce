@@ -9,8 +9,52 @@ spring:
     hibernate:
       ddl-auto: update
 
-server:
-  port: 0
+  kafka:
+    bootstrap-servers:
+      - localhost:29092
+      - localhost:39092
+      - localhost:49092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        acks: all
+        retries: 3
+        enable.idempotence: true
+    consumer:
+      group-id: product-inventory-response-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+    properties:
+      # Asıl objeyi çevirecek olan delege sınıf (JsonDeserializer)
+      spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+      # Paketi tanıması lazım (Common içindeki event nesnesi)
+      spring.json.trusted.packages: "com.semih.common.dto"
+      topics:
+        product-events: product-events-topic
+        product-stock-response-events: product-stock-response-events
+
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 2000
+            readTimeout: 3000
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      categoryService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10 # Son 10 isteğe bakarak karar ver
+        failureRateThreshold: 50 # İsteklerin %50'si (5 tanesi) teknik hata verirse devreyi aç
+        waitDurationInOpenState: 10000ms # Devre açılınca (sigorta atınca) 10 saniye bekle
+        permittedNumberOfCallsInHalfOpenState: 3 # Düzeldi mi diye 3 istek gönder
+        ignore-exceptions:
+          - feign.FeignException.NotFound
+          - feign.FeignException.BadRequest
 
 
 eureka:
@@ -21,7 +65,6 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
     fetch-registry: true
 
-
 management:
   tracing:
     sampling:
@@ -29,3 +72,6 @@ management:
   zipkin:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
+
+server:
+  port: 0

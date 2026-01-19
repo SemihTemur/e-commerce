@@ -1,9 +1,34 @@
 spring:
   application:
     name: inventory-service
-  data:
-    mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI}
+  mongodb:
+    uri: ${SPRING_DATA_MONGODB_URI}
+
+  kafka:
+    bootstrap-servers:
+      - localhost:29092
+      - localhost:39092
+      - localhost:49092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        acks: all
+        retries: 3
+        enable.idempotence: true
+    consumer:
+      group-id: inventory-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+    properties:
+      # Asıl objeyi çevirecek olan delege sınıf (JsonDeserializer)
+      spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+      # Paketi tanıması lazım (Common içindeki event nesnesi)
+      spring.json.trusted.packages: "com.semih.common.dto"
+      topics:
+        product-events: product-events-topic
+        product-stock-response-events: product-stock-response-events
 
 server:
   port: 8084

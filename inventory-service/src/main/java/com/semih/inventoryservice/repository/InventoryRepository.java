@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-public interface InventoryRepository extends MongoRepository<Inventory, Integer> {
+public interface InventoryRepository extends MongoRepository<Inventory, String> {
 
     Optional<Inventory> findByProductId(Long productId);
 

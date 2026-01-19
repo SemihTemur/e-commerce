@@ -1,6 +1,9 @@
 package com.semih.productservice.service;
 
-import com.semih.common.dto.request.*;
+import com.semih.common.constant.EntityStatus;
+import com.semih.common.dto.request.CategoryValidationRequest;
+import com.semih.common.dto.request.ProductCategoryAndSubCategoryRequest;
+import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.response.*;
 import com.semih.common.exception.CategoryNotFoundException;
 import com.semih.common.exception.SubCategoryNotFoundException;
@@ -13,76 +16,106 @@ import com.semih.productservice.entity.Product;
 import com.semih.productservice.entity.ProductCategoryMapping;
 import com.semih.productservice.exception.ProductNotFoundException;
 import com.semih.productservice.repository.ProductRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
+    private final ProductManager productManager;
+
     private final ProductRepository productRepository;
+
     private final CategoryClient categoryClient;
+
     private final InventoryClient inventoryClient;
 
-    public ProductService(ProductRepository productRepository, CategoryClient categoryClient,
-                          InventoryClient inventoryClient) {
+    private static final Logger log = LoggerFactory.getLogger(ProductService.class);
+
+    public ProductService(ProductManager productManager,
+                          ProductRepository productRepository,
+                          CategoryClient categoryClient, InventoryClient inventoryClient) {
+        this.productManager = productManager;
         this.productRepository = productRepository;
         this.categoryClient = categoryClient;
         this.inventoryClient = inventoryClient;
     }
 
-    // Post
+    @CircuitBreaker(name = "categoryService", fallbackMethod = "createProductCategoryServiceFallback")
     public String createProduct(ProductRequest productRequest){
         if(productRequest.categoryRequestList()!=null && !productRequest.categoryRequestList().isEmpty())
             categoryClient.validateCategoryHierarchy(productRequest.categoryRequestList());
 
-        Product savedProduct = productRepository.save(mapToCategoryEntity(productRequest));
-
-        ProductQuantityRequest productQuantityRequest = mapToProductQuantityRequest(
-                savedProduct.getId(),productRequest.quantity());
-        inventoryClient.createInventoryToProduct(productQuantityRequest);
+        Product savedProduct = mapToCategoryEntity(productRequest);
+        productManager.persistProductAndOutbox(savedProduct,productRequest.quantity());
 
         return "Succesfully";
     }
 
-    public String addCategoryToProduct(Long productId,Long categoryId){
-        Product product = getProductOrThrow(productId);
+    public String createProductCategoryServiceFallback(ProductRequest productRequest, Throwable t) {
+        log.error("Category Service unavailable while creating product. Reason: {}", t.getMessage());
+        return "Category service is temporarily unavailable. Please try again later.";
+    }
 
+    @CircuitBreaker(name = "categoryService", fallbackMethod = "addCategoryToProductCategoryServiceFallback")
+    public String addCategoryToProduct(Long productId, Long categoryId) {
+        // 1. Dış servis çağrısını burada yap (Transaction yok, temiz)
         categoryClient.validateCategoryExistsById(categoryId);
 
-        addCategoryMappingToProduct(product,categoryId,null);
+        // 2. Sadece ID'leri gönder, nesneyi Transactional serviste yükle
+        productManager.addCategoryAndSave(productId, categoryId);
 
-        productRepository.save(product);
-
-        return "Succesfully";
+        return "Successfully";
     }
 
-    public String addSubCategoryToProduct(Long productId,Long categoryId,Long subCategoryId){
-        Product product = getProductOrThrow(productId);
-
-        categoryClient.validateSubCategoryExists(categoryId,subCategoryId);
-
-        List<ProductCategoryMapping> productCategoryMappingList = productRepository.findByProductIdAndCategoryId(
-                productId,categoryId
+    public String addCategoryToProductCategoryServiceFallback(
+            Long productId,
+            Long categoryId,
+            Throwable t
+    ) {
+        log.error(
+                "Category Service unavailable while adding category to product. productId={}, categoryId={}",
+                productId,
+                categoryId,
+                t
         );
 
-        boolean hasSubCategory = false;
-        for (ProductCategoryMapping productCategoryMapping : productCategoryMappingList) {
-            if (productCategoryMapping.getSubCategoryId() == null) {
-                hasSubCategory = true;
-                productCategoryMapping.setSubCategoryId(subCategoryId);
-                product.setCategoryMappings(productCategoryMappingList);
-            }
-        }
+        return "Category service is temporarily unavailable. Category could not be added to product.";
+    }
 
+    @CircuitBreaker(name = "categoryService", fallbackMethod = "addSubCategoryToProductCategoryServiceFallback")
+    public String addSubCategoryToProduct(Long productId,Long categoryId,Long subCategoryId){
+        categoryClient.validateSubCategoryExists(categoryId,subCategoryId);
 
-        if(!hasSubCategory)
-            addCategoryMappingToProduct(product,categoryId,subCategoryId);
-
-        productRepository.save(product);
+        productManager.addSubCategoryAndSave(productId,categoryId,subCategoryId);
 
         return "Succesfully";
     }
+
+    public String addSubCategoryToProductCategoryServiceFallback(
+            Long productId,
+            Long categoryId,
+            Long subCategoryId,
+            Throwable t
+    ) {
+        log.error(
+                "Category Service unavailable while adding subcategory to product. productId={}, categoryId={}, subCategoryId={}",
+                productId,
+                categoryId,
+                subCategoryId,
+                t
+        );
+
+        return "Category service is temporarily unavailable. Subcategory could not be added to product.";
+    }
+
 
     // Get
     public List<ProductInfoResponse> getAllProductInfo(){
@@ -92,10 +125,11 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
+    @CircuitBreaker(name = "inventoryService", fallbackMethod = "priceProductsForCheckoutInventoryServiceFallback")
     public List<ProductLineItemResponse> priceProductsForCheckout(
             List<ProductQuantityRequest> productQuantityRequests) {
 
-       inventoryClient.checkAvailabilityByProductIds(productQuantityRequests);
+        inventoryClient.checkAvailabilityByProductIds(productQuantityRequests);
 
         List<Long> productIds = productQuantityRequests
                 .stream()
@@ -116,77 +150,169 @@ public class ProductService {
         return mapToProductLineItemResponse(productList, productQuantityRequestMap);
     }
 
+    public List<ProductLineItemResponse> priceProductsForCheckoutInventoryServiceFallback(
+            List<ProductQuantityRequest> productQuantityRequests,
+            Throwable t
+    ) {
+        log.error(
+                "Inventory Service unavailable during checkout pricing. Requests={}",
+                productQuantityRequests,
+                t
+        );
+
+        return Collections.emptyList();
+    }
 
     public List<ProductDetailResponse> getAllProductDetail() {
+
         List<Product> productList = productRepository.findAllWithCategories();
 
-        List<Long> productIdList = productList.stream().map(Product::getId).toList();
-        List<ProductStockResponse> stockList = inventoryClient.getStockForProducts(productIdList)
+        List<Long> productIdList = productList.stream()
+                .map(Product::getId)
+                .toList();
+
+        // 🔹 AYRI METOT
+        Map<Long, ProductStockResponse> stockMap = fetchStockMap(productIdList);
+
+        // 🔹 AYRI METOT
+        Map<Long, ProductCategoryInfoResponse> categoryMap = fetchCategoryMap(productList);
+
+        // 🔹 BİRLEŞTİRME (AYNI)
+        return productList.stream().map(product -> {
+
+            ProductInfoResponse info = new ProductInfoResponse(
+                    product.getId(),
+                    product.getProductName(),
+                    product.getProductPrice(),
+                    product.getCreatedAt(),
+                    product.getUpdatedAt()
+            );
+
+            ProductStockResponse stock = stockMap.getOrDefault(
+                    product.getId(),
+                    new ProductStockResponse(product.getId(), 0)
+            );
+
+            Map<Long, List<Long>> productSpecificMapping =
+                    product.getCategoryMappings().stream()
+                            .collect(Collectors.groupingBy(
+                                    ProductCategoryMapping::getCategoryId,
+                                    Collectors.mapping(
+                                            ProductCategoryMapping::getSubCategoryId,
+                                            Collectors.toList()
+                                    )
+                            ));
+
+            List<ProductCategoryInfoResponse> finalCategories =
+                    productSpecificMapping.entrySet().stream()
+                            .map(entry -> {
+                                ProductCategoryInfoResponse fullCategory =
+                                        categoryMap.get(entry.getKey());
+
+                                if (fullCategory == null) return null;
+
+                                List<SubCategoryInfoResponse> filteredSubs =
+                                        fullCategory.subCategoryInfoResponses().stream()
+                                                .filter(sub ->
+                                                        entry.getValue()
+                                                                .contains(sub.subCategoryId()))
+                                                .toList();
+
+                                return new ProductCategoryInfoResponse(
+                                        fullCategory.categoryId(),
+                                        fullCategory.categoryName(),
+                                        filteredSubs
+                                );
+                            })
+                            .filter(Objects::nonNull)
+                            .toList();
+
+            return new ProductDetailResponse(
+                    info,
+                    product.getProductDescription(),
+                    stock,
+                    finalCategories
+            );
+
+        }).toList();
+    }
+
+    @CircuitBreaker(name = "inventoryService", fallbackMethod = "fetchStockMapInventoryServiceFallback")
+    public Map<Long, ProductStockResponse> fetchStockMap(List<Long> productIdList) {
+
+        List<ProductStockResponse> stockList = inventoryClient
+                .getStockForProducts(productIdList)
                 .getBody();
 
-        // Map'i nesne olarak tutuyoruz
-        Map<Long, ProductStockResponse> stockMap = (stockList != null) ? stockList.stream()
-                .collect(Collectors.toMap(ProductStockResponse::productId, s -> s)) : new HashMap<>();
+        return (stockList != null)
+                ? stockList.stream()
+                .collect(Collectors.toMap(ProductStockResponse::productId, s -> s))
+                : new HashMap<>();
+    }
 
-        // Kategori Request Hazırlama (Aynı Mantık)
+    public Map<Long, ProductStockResponse> fetchStockMapInventoryServiceFallback(
+            List<Long> productIdList,
+            Throwable t
+    ) {
+        log.error(
+                "Inventory Service unavailable while fetching stock info. productIds={}",
+                productIdList,
+                t
+        );
+
+        return new HashMap<>();
+    }
+
+    @CircuitBreaker(name = "categoryService", fallbackMethod = "fetchCategoryMapCategoryServiceFallback")
+    public Map<Long, ProductCategoryInfoResponse> fetchCategoryMap(
+            List<Product> productList
+    ) {
+
         Map<Long, Set<Long>> globalCategoryRequestMap = new HashMap<>();
+
         for (Product product : productList) {
             for (ProductCategoryMapping mapping : product.getCategoryMappings()) {
-                globalCategoryRequestMap.computeIfAbsent(mapping.getCategoryId(), k -> new HashSet<>())
+                globalCategoryRequestMap
+                        .computeIfAbsent(mapping.getCategoryId(), k -> new HashSet<>())
                         .add(mapping.getSubCategoryId());
             }
         }
 
-        List<ProductCategoryAndSubCategoryRequest> requests = globalCategoryRequestMap.entrySet().stream()
-                .map(e -> new ProductCategoryAndSubCategoryRequest(e.getKey(), e.getValue()))
-                .toList();
+        List<ProductCategoryAndSubCategoryRequest> requests =
+                globalCategoryRequestMap.entrySet().stream()
+                        .map(e -> new ProductCategoryAndSubCategoryRequest(
+                                e.getKey(),
+                                e.getValue()
+                        ))
+                        .toList();
 
         List<ProductCategoryInfoResponse> categoryInfoList = categoryClient
-                .getCategoryWithSubCategoriesForProductList(requests).getBody();
+                .getCategoryWithSubCategoriesForProductList(requests)
+                .getBody();
 
-        Map<Long, ProductCategoryInfoResponse> categoryMap = (categoryInfoList != null) ?
-                categoryInfoList.stream()
-                .collect(Collectors.toMap(ProductCategoryInfoResponse::categoryId, c -> c))
+        return (categoryInfoList != null)
+                ? categoryInfoList.stream()
+                .collect(Collectors.toMap(
+                        ProductCategoryInfoResponse::categoryId,
+                        c -> c
+                ))
                 : new HashMap<>();
-
-        // BİRLEŞTİRME
-        return productList.stream().map(product -> {
-            ProductInfoResponse info = new ProductInfoResponse(
-                    product.getId(), product.getProductName(), product.getProductPrice(),
-                    product.getCreatedAt(), product.getUpdatedAt());
-
-            // Stok bilgisini nesne olarak çekiyoruz
-            ProductStockResponse stock = stockMap.getOrDefault(product.getId(),
-                    new ProductStockResponse(product.getId(), 0));
-
-            // Gruplanmış Kategoriler
-            Map<Long, List<Long>> productSpecificMapping = product.getCategoryMappings().stream()
-                    .collect(Collectors.groupingBy(ProductCategoryMapping::getCategoryId,
-                            Collectors.mapping(ProductCategoryMapping::getSubCategoryId, Collectors.toList())));
-
-            List<ProductCategoryInfoResponse> finalCategories = productSpecificMapping.entrySet().stream()
-                    .map(entry -> {
-                        ProductCategoryInfoResponse fullCategory = categoryMap.get(entry.getKey());
-                        if (fullCategory == null) return null;
-
-                        List<SubCategoryInfoResponse> filteredSubs = fullCategory.subCategoryInfoResponses().stream()
-                                .filter(sub -> entry.getValue().contains(sub.subCategoryId()))
-                                .toList();
-
-                        return new ProductCategoryInfoResponse(fullCategory.categoryId(), fullCategory.categoryName(), filteredSubs);
-                    })
-                    .filter(Objects::nonNull)
-                    .toList();
-
-            return new ProductDetailResponse(info, product.getProductDescription(), stock, finalCategories);
-        }).toList();
     }
 
-//    public void validateProductsAvailability(List<ProductQuantityRequest> requests){
-//        // hem ürün hemde stok yeterlı mıktarda mı kontrolu edılıyo.
-//        inventoryClient.checkProductsAvailability(requests);
-//    }
+    public Map<Long, ProductCategoryInfoResponse> fetchCategoryMapCategoryServiceFallback(
+            List<Product> productList,
+            Throwable t
+    ) {
+        log.error(
+                "Category Service unavailable while fetching category map. productCount={}",
+                productList != null ? productList.size() : 0,
+                t
+        );
 
+        return new HashMap<>();
+    }
+
+    @CircuitBreaker(name = "inventoryService", fallbackMethod = "getBasketProductResponseInventoryServiceFallback")
     public List<BasketProductResponse> getBasketProductResponse(List<Long> productIdList){
         List<Product> products = findByProductIdIn(productIdList);
 
@@ -197,78 +323,118 @@ public class ProductService {
         return mapToBasketProductResponse(products,productStockResponses);
     }
 
+    public List<BasketProductResponse> getBasketProductResponseInventoryServiceFallback(
+            List<Long> productIdList,
+            Throwable t
+    ) {
+        log.error(
+                "Inventory Service unavailable while fetching basket product response. productIds={}",
+                productIdList,
+                t
+        );
+
+        return Collections.emptyList();
+    }
+
+    @CircuitBreaker(name = "categoryService", fallbackMethod = "validateCategoryStructureCategoryServiceFallback")
+    public void validateCategoryStructure(ProductRequest request) {
+        if (request.categoryRequestList() != null && !request.categoryRequestList().isEmpty()) {
+            categoryClient.validateCategoryHierarchy(request.categoryRequestList());
+        }
+    }
+
+    public void validateCategoryStructureCategoryServiceFallback(
+            ProductRequest request,
+            Throwable t
+    ) {
+        log.error(
+                "Category Service unavailable while validating category structure. request={}",
+                request,
+                t
+        );
+        throw new RuntimeException("Category service is temporarily unavailable");
+    }
+
     // Update
     public String updateProductPartially(Long id, ProductRequest productRequest) {
-        Product updatedProduct = getProductOrThrow(id);
+        validateCategoryStructure(productRequest);
 
-        updateBasicFields(updatedProduct, productRequest);
-
-        updateCategories(updatedProduct, productRequest);
-
-        updateQuantity(updatedProduct, productRequest);
-
-        productRepository.save(updatedProduct);
+        productManager.updateProductCore(id,productRequest);
 
         return "Successfully";
     }
 
-    // Delete
-    public Boolean deleteProductById(Long productId){
-        Product deletedCategory = getProductOrThrow(productId);
-
-        inventoryClient.deleteInventoryByProductId(deletedCategory.getId());
-        productRepository.delete(deletedCategory);
-
+    public Boolean deleteProductById(Long productId) {
+        productManager.deleteProduct(productId);
         return true;
     }
 
-    public Boolean deleteProductByCategoryId(Long productId,Long categoryId){
-        Product product = getProductOrThrow(productId);
-
-
-        List<ProductCategoryMapping> productCategoryMappingList = product.getCategoryMappings();
-
-        boolean isFound = false;
-        for(ProductCategoryMapping productCategoryMapping:productCategoryMappingList){
-            if(productCategoryMapping.getCategoryId().equals(categoryId)){
-                isFound = true;
-                break;
-            }
-        }
-
-        if(!isFound)
-            throw new CategoryNotFoundException("Kategori bulunamadı. ID: " + categoryId);
-
-        productCategoryMappingList.removeIf(productCategoryMapping -> productCategoryMapping.getCategoryId()
-                .equals(categoryId));
-
-        productRepository.save(product);
-
+    public Boolean deleteProductByCategoryId(Long productId, Long categoryId) {
+        productManager.removeCategoryFromProduct(productId, categoryId);
         return true;
     }
 
-    public Boolean deleteProductBySubCategoryId(Long productId,Long subCategoryId){
-        Product product = getProductOrThrow(productId);
+    public Boolean deleteProductBySubCategoryId(Long productId, Long subCategoryId) {
+        productManager.removeSubCategoryFromProduct(productId, subCategoryId);
+        return true;
+    }
 
-        List<ProductCategoryMapping> productCategoryMappingList = product.getCategoryMappings();
+    //For kafka
+    @Transactional
+    public void completeProductStatus(ProductStockResponseEvent productStockResponseEvent){
+        productRepository
+                .findByIdAndPendingStatus(productStockResponseEvent.productId())
+                .ifPresentOrElse(
+                        product -> {
+                            applyStatusFromStockResponse(product,productStockResponseEvent);
 
-        boolean isFound = false;
-        for(ProductCategoryMapping productCategoryMapping:productCategoryMappingList){
-            if(productCategoryMapping.getSubCategoryId().equals(subCategoryId)){
-                isFound = true;
-                break;
+                            log.info(
+                                    "Product {} status updated to {}",
+                                    product.getId(),
+                                    product.getStatus()
+                            );
+                        },
+                        () -> log.warn(
+                                "No PENDING product found to update: {}",
+                                productStockResponseEvent.productId()
+                        )
+                );
+
+    }
+
+    private void applyStatusFromStockResponse(
+            Product product,
+            ProductStockResponseEvent productStockResponseEvent
+    ) {
+        switch (productStockResponseEvent.operation()) {
+
+            case ACTIVE -> product.setStatus(EntityStatus.ACTIVE);
+
+            case UPDATING -> product.setStatus(EntityStatus.UPDATING);
+
+            case REJECTED -> product.setStatus(EntityStatus.REJECTED);
+
+            default -> {
+                log.warn(
+                        "Unhandled operation status: {} for productId: {}",
+                        productStockResponseEvent.operation(),
+                        product.getId()
+                );
+                return;
             }
         }
 
-        if(!isFound)
-            throw new SubCategoryNotFoundException("Alt Kategori Bulunamadı "+subCategoryId);
+        product.setStatusReason(productStockResponseEvent.message());
+    }
 
-        productCategoryMappingList.removeIf(productCategoryMapping -> productCategoryMapping.getSubCategoryId()
-                .equals(subCategoryId));
+    private String getUserId(){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        productRepository.save(product);
+        if(authentication==null || authentication.getPrincipal()==null){
+            throw new RuntimeException("Böyle bir Kullanıcı yoktur");
+        }
 
-        return true;
+        return (String) authentication.getPrincipal();
     }
 
     //Mapping Client
@@ -294,17 +460,21 @@ public class ProductService {
     private Product mapToCategoryEntity(ProductRequest productRequest){
         if(productRequest.categoryRequestList()!=null && !productRequest.categoryRequestList().isEmpty()) {
             return new Product(
+                    getUserId(),
                     productRequest.productName(),
                     productRequest.productDescription(),
                     productRequest.productPrice(),
+                    "Waiting for review",
                     mapToProductCategoryMappingEmbeddableList(productRequest.categoryRequestList())
             );
         }
 
         return new Product(
+                getUserId(),
                 productRequest.productName(),
                 productRequest.productDescription(),
-                productRequest.productPrice()
+                productRequest.productPrice(),
+                "Waiting for review"
         );
 
     }
@@ -362,47 +532,6 @@ public class ProductService {
         }
 
         return productLineItemResponseList;
-    }
-
-    private void addCategoryMappingToProduct(Product product, Long categoryId, Long subCategoryId) {
-        List<ProductCategoryMapping> productCategoryMappingList = new ArrayList<>();
-        productCategoryMappingList.add(new ProductCategoryMapping(categoryId, subCategoryId));
-
-        product.getCategoryMappings().addAll(productCategoryMappingList);
-    }
-
-    private void updateBasicFields(Product product, ProductRequest request) {
-        if (request.productName() != null && !request.productName().isBlank()) {
-            product.setProductName(request.productName());
-        }
-
-        if (request.productDescription() != null && !request.productDescription().isBlank()) {
-            product.setProductDescription(request.productDescription());
-        }
-
-        if (request.productPrice() != null) {
-            product.setProductPrice(request.productPrice());
-        }
-    }
-
-    private void updateCategories(Product product, ProductRequest request) {
-        if (request.categoryRequestList() == null || request.categoryRequestList().isEmpty()) return;
-
-        categoryClient.validateCategoryHierarchy(request.categoryRequestList());
-
-        List<ProductCategoryMapping> mappings = product.getCategoryMappings();
-        mappings.addAll(mapToProductCategoryMappingEmbeddableList(request.categoryRequestList()));
-
-        product.setCategoryMappings(mappings);
-    }
-
-    private void updateQuantity(Product product, ProductRequest request) {
-        if (request.quantity() == null) return;
-
-        ProductQuantityRequest quantityRequest = mapToProductQuantityRequest(product.getId(),
-                request.quantity());
-
-        inventoryClient.createInventoryToProduct(quantityRequest);
     }
 
     private void validateAllProductsExist(List<Long> requestedProductIds, List<Product> foundProducts) {

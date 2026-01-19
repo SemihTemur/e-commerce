@@ -1,13 +1,18 @@
 package com.semih.inventoryservice.service;
 
+import com.semih.common.constant.EntityStatus;
 import com.semih.common.dto.request.ProductQuantityRequest;
+import com.semih.common.dto.request.ProductStockEvent;
 import com.semih.common.dto.response.ProductStockResponse;
+import com.semih.common.dto.response.ProductStockResponseEvent;
 import com.semih.common.exception.InsufficientStockException;
 import com.semih.common.exception.InventoryException;
 import com.semih.common.exception.ProductNotFoundException;
 import com.semih.common.exception.StockNotFoundException;
 import com.semih.inventoryservice.document.Inventory;
 import com.semih.inventoryservice.repository.InventoryRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,14 +21,42 @@ import java.util.stream.Collectors;
 
 @Service
 public class InventoryService {
+
     private final InventoryRepository inventoryRepository;
+
+    private static final Logger log = LoggerFactory.getLogger(InventoryService.class);
 
     public InventoryService(InventoryRepository inventoryRepository) {
         this.inventoryRepository = inventoryRepository;
     }
 
-    public void createInventoryToProduct(ProductQuantityRequest productQuantityRequest) {
-        inventoryRepository.save(mapToInventoryEntity(productQuantityRequest));
+
+    public ProductStockResponseEvent executeInventoryOperation(ProductStockEvent event) {
+        return switch (event.eventType()) {
+            case CREATED -> {
+                createInventory(event);
+                yield createSuccessResponse(event, EntityStatus.ACTIVE,
+                        "Product inventory has been created successfully.");
+            }
+            case UPDATED -> {
+                updateInventory(event);
+                // Güncelleme bittiği için tekrar ACTIVE olmalı
+                yield createSuccessResponse(event, EntityStatus.ACTIVE,
+                        "Product stock has been updated successfully.");
+            }
+            case DELETED -> {
+                deleteInventory(event.productId());
+                yield createSuccessResponse(event, EntityStatus.DELETING,
+                        "Product inventory has been deleted successfully.");
+            }
+        };
+    }
+
+    public void createInventory(ProductStockEvent event) {
+        inventoryRepository.save(new Inventory(
+                event.productId(),
+                event.quantity()
+        ));
     }
 
     public List<ProductStockResponse> getStockForProducts(List<Long> productIdList){
@@ -52,7 +85,8 @@ public class InventoryService {
                 .collect(Collectors.toMap(ProductQuantityRequest::productId,
                         ProductQuantityRequest::quantity));
 
-        List<Inventory> inventoryList = inventoryRepository.findByProductIdIn(productQuantityRequestMap.keySet());
+        List<Inventory> inventoryList = inventoryRepository.findByProductIdIn(
+                productQuantityRequestMap.keySet());
 
         validateAllProductsExist(inventoryList, productQuantityRequestMap.keySet());
 
@@ -62,21 +96,29 @@ public class InventoryService {
         inventoryRepository.saveAll(inventoryList);
     }
 
-    // buralardakı hata mesajıda
-    public void updateInventory(ProductQuantityRequest productQuantityRequest){
-        Inventory inventory = inventoryRepository.findByProductId(productQuantityRequest.productId())
-                .orElseThrow(()-> new StockNotFoundException("Böyle bir stok yoktur"));
+    public void updateInventory(ProductStockEvent event) {
+        Inventory inventory = inventoryRepository.findByProductId(event.productId())
+                .orElseThrow(() -> new StockNotFoundException("Stock not found"));
 
-        inventory.setQuantity(productQuantityRequest.quantity());
-
+        inventory.setQuantity(event.quantity());
         inventoryRepository.save(inventory);
     }
 
-    public void deleteInventoryByProductId(Long productId){
+    public void deleteInventory(Long productId) {
         Inventory inventory = inventoryRepository.findByProductId(productId)
-                .orElseThrow(()-> new StockNotFoundException("Böyle bir stok yoktur"));
+                .orElseThrow(() -> new StockNotFoundException("Stock not found"));
 
         inventoryRepository.delete(inventory);
+    }
+
+    private ProductStockResponseEvent createSuccessResponse(ProductStockEvent event, EntityStatus status,
+                                                            String message) {
+        return new ProductStockResponseEvent(
+                event.eventId(),
+                event.productId(),
+                status,
+                message
+        );
     }
 
     //toResponse
@@ -91,10 +133,10 @@ public class InventoryService {
     }
 
     //toEntity
-    private Inventory mapToInventoryEntity(ProductQuantityRequest productQuantityRequest){
+    private Inventory mapToInventoryEntity(ProductStockEvent productStockEvent){
         return new Inventory(
-                productQuantityRequest.productId(),
-                productQuantityRequest.quantity()
+                productStockEvent.productId(),
+                productStockEvent.quantity()
         );
     }
 

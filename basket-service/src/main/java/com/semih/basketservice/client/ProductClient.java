@@ -24,7 +24,7 @@ public interface ProductClient {
     @GetMapping(BASKET_PRODUCT)
     ResponseEntity<List<BasketProductResponse>> getBasketProductResponse(@RequestBody
                                                                          List<Long> productIdList);
-    @PostMapping(CHECKOUT_PRICE)
+     @PostMapping(CHECKOUT_PRICE)
      ResponseEntity<List<ProductLineItemResponse>> priceProductsForCheckout(
              List<ProductQuantityRequest> productQuantityRequests);
 }

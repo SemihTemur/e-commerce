@@ -24,7 +24,9 @@ public class SubCategoryService {
 
     //Post
     public SubCategoryResponse createSubCategory(SubCategoryCreateRequest subCategoryCreateRequest){
-         SubCategory savedDubCategory = subCategoryRepository.save(mapToSubCategoryEntity(subCategoryCreateRequest));
+         SubCategory savedDubCategory = subCategoryRepository.save(mapToSubCategoryEntity(
+                 subCategoryCreateRequest)
+         );
          return mapToSubCategoryResponse(savedDubCategory);
     }
 
@@ -49,7 +51,9 @@ public class SubCategoryService {
 
     //Put
     public SubCategoryResponse updateSubCategoryById(Long id, SubCategoryUpdateRequest subCategoryUpdateRequest){
-        SubCategory updatedSubCategory = subCategoryRepository.save(mapToSubCategoryUpdate(id,subCategoryUpdateRequest));
+        SubCategory updatedSubCategory = subCategoryRepository.save(
+                mapToSubCategoryUpdate(id,subCategoryUpdateRequest)
+        );
         return mapToSubCategoryResponse(updatedSubCategory);
     }
 
@@ -62,8 +66,12 @@ public class SubCategoryService {
 
     //toResponse
     private SubCategoryResponse mapToSubCategoryResponse(SubCategory subCategory){
-        return new SubCategoryResponse(subCategory.getId(),subCategory.getSubCategoryName(),
-                subCategory.getCreatedAt(),subCategory.getUpdatedAt());
+        return new SubCategoryResponse(
+                subCategory.getId(),
+                subCategory.getSubCategoryName(),
+                subCategory.getCreatedAt(),
+                subCategory.getUpdatedAt()
+        );
     }
 
     //toEntity
@@ -74,8 +82,10 @@ public class SubCategoryService {
     }
 
     private SubCategory mapToSubCategoryEntity(SubCategoryCreateRequest subCategoryCreateRequest){
-        return new SubCategory(subCategoryCreateRequest.subCategoryName(),
-                categoryService.getCategoryOrThrow(subCategoryCreateRequest.categoryId()));
+        return new SubCategory(
+                subCategoryCreateRequest.subCategoryName(),
+                categoryService.getCategoryOrThrow(subCategoryCreateRequest.categoryId())
+        );
     }
 
     private SubCategory getSubCategoryOrThrow(Long id){

@@ -1,5 +1,6 @@
 package com.semih.productservice.entity;
 
+import com.semih.common.constant.EntityStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -16,6 +17,9 @@ public class Product {
     private Long id;
 
     @Column(nullable = false)
+    private String sellerId;
+
+    @Column(nullable = false)
     private String productName;
 
     @Column(nullable = false)
@@ -23,6 +27,11 @@ public class Product {
 
     @Column(nullable = false)
     private BigDecimal productPrice;
+
+    @Enumerated(EnumType.STRING)
+    private EntityStatus status = EntityStatus.PENDING;
+
+    private String statusReason = "Product registration created, processing...";
 
     @Column(updatable = false)
     @CreationTimestamp
@@ -46,16 +55,22 @@ public class Product {
     public Product() {
     }
 
-    public Product(String productName, String productDescription, BigDecimal productPrice) {
+    public Product(String sellerId, String productName, String productDescription,
+                   BigDecimal productPrice, String statusReason) {
+        this.sellerId = sellerId;
         this.productName = productName;
         this.productDescription = productDescription;
         this.productPrice = productPrice;
+        this.statusReason = statusReason;
     }
 
-    public Product(String productName, String productDescription, BigDecimal productPrice, List<ProductCategoryMapping> categoryMappings) {
+    public Product(String sellerId, String productName, String productDescription, BigDecimal productPrice,
+                   String statusReason, List<ProductCategoryMapping> categoryMappings) {
+        this.sellerId = sellerId;
         this.productName = productName;
         this.productDescription = productDescription;
         this.productPrice = productPrice;
+        this.statusReason = statusReason;
         this.categoryMappings = categoryMappings;
     }
 
@@ -63,8 +78,12 @@ public class Product {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public String getSellerId() {
+        return sellerId;
+    }
+
+    public void setSellerId(String sellerId) {
+        this.sellerId = sellerId;
     }
 
     public String getProductName() {
@@ -91,20 +110,28 @@ public class Product {
         this.productPrice = productPrice;
     }
 
+    public EntityStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(EntityStatus status) {
+        this.status = status;
+    }
+
+    public String getStatusReason() {
+        return statusReason;
+    }
+
+    public void setStatusReason(String statusReason) {
+        this.statusReason = statusReason;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 
     public List<ProductCategoryMapping> getCategoryMappings() {

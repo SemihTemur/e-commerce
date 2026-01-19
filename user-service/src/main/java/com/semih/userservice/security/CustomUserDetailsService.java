@@ -2,6 +2,7 @@ package com.semih.userservice.security;
 
 import com.semih.userservice.exception.UserNotFoundException;
 import com.semih.userservice.repository.UserRepository;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;

@@ -26,7 +26,7 @@ public interface InventoryClient {
     ResponseEntity<List<ProductStockResponse>> getStockForProducts(@RequestBody List<Long> productIds);
 
     @PostMapping(VALIDATE_FOR_CHECKOUT)
-     ResponseEntity<Void> checkAvailabilityByProductIds(List<ProductQuantityRequest>
+    ResponseEntity<Void> checkAvailabilityByProductIds(@RequestBody List<ProductQuantityRequest>
                                                                       productQuantityRequests);
 
     @PostMapping(CHECK_AVAILABILITY)

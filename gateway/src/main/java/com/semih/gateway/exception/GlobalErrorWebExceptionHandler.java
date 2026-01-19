@@ -4,70 +4,69 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
+import org.jspecify.annotations.NonNull;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebExceptionHandler; // Doğru Interface
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
 @Component
-@Order(-2) // En yüksek önceliğe sahip olmalı
-public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler {
+@Order(-2)
+public class GlobalErrorWebExceptionHandler implements WebExceptionHandler {
 
-    // JSON dönüşümü için ObjectMapper (WebFlux'ta bulunur)
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     public GlobalErrorWebExceptionHandler() {
-        // LocalDateTime'ı JSON'a düzgün çevirmek için
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // Senin mapper ayarlarını koruyoruz
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
+        this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     @Override
-    public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {
+    public Mono<Void> handle(@NonNull ServerWebExchange exchange, @NonNull Throwable ex) {
 
-        // 1. JWT Hatalarını Kontrol Et
-        if (ex instanceof AuthenticationCredentialsNotFoundException jwtEx) {
+        // 1. Durum kodunu ve mesajı belirle (Default: 500)
+        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+        String errorMessage = ex.getMessage();
+        Map<String, String> errorDetails = Map.of("type", "SystemError");
 
-            // 2. HTTP Durum Kodunu Ayarla
-            HttpStatus status = HttpStatus.UNAUTHORIZED; // 401 Unauthorized
-            exchange.getResponse().setStatusCode(status);
-            exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
-
-            // 3. ApiError Objesini Oluştur
-            ApiError errorResponse = new ApiError(
-                    status.value(),
-                    jwtEx.getMessage(), // GlobalFilter'dan gelen mesajı kullan
-                    OffsetDateTime.now(),
-                    Map.of("tokenError", jwtEx.getCause() != null ? jwtEx.getCause().getClass().getSimpleName() : "Unknown")
-            );
-
-            try {
-                // 4. ApiError Objesini JSON'a Çevir
-                byte[] jsonBytes = objectMapper.writeValueAsBytes(errorResponse);
-                DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(jsonBytes);
-
-                // 5. Cevabı İstemciye Yaz
-                return exchange.getResponse().writeWith(Mono.just(buffer));
-
-            } catch (JsonProcessingException e) {
-                // JSON'a çevrim hatası olursa
-                return Mono.error(e);
-            }
+        // 2. Senin JWT Hata kontrolün (Sınıf ismini kendi projenle eşleştir)
+        if (ex.getClass().getSimpleName().contains("AuthenticationCredentialsNotFoundException")) {
+            status = HttpStatus.UNAUTHORIZED;
+            errorDetails = Map.of("tokenError", ex.getCause() != null ? ex.getCause().getClass().getSimpleName() : "Invalid");
         }
 
-        // Diğer hatalar için varsayılan davranışı sürdür
-        return Mono.error(ex);
+        // 3. Response Ayarları
+        exchange.getResponse().setStatusCode(status);
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+        // 4. ApiError Objesini oluştur
+        ApiError errorResponse = new ApiError(
+                status.value(),
+                errorMessage,
+                OffsetDateTime.now(),
+                errorDetails
+        );
+
+        try {
+            // 5. JSON'a çevir ve yaz
+            byte[] jsonBytes = objectMapper.writeValueAsBytes(errorResponse);
+            DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(jsonBytes);
+            return exchange.getResponse().writeWith(Mono.just(buffer));
+        } catch (JsonProcessingException e) {
+            return Mono.error(e);
+        }
     }
 
-    // ApiError Record Tanımı (Bu sınıfın dışında veya içinde tanımlanabilir)
+    // Senin Record yapını koruyoruz
     public record ApiError(
             int status,
             String message,

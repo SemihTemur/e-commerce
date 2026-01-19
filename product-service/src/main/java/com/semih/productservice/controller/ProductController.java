@@ -55,8 +55,8 @@ public class ProductController {
     }
 
     @PostMapping(CHECKOUT_PRICE)
-    public ResponseEntity<List<ProductLineItemResponse>> priceProductsForCheckout(List<ProductQuantityRequest>
-                                                                          productQuantityRequests){
+    public ResponseEntity<List<ProductLineItemResponse>> priceProductsForCheckout(
+            @RequestBody List<ProductQuantityRequest> productQuantityRequests){
         List<ProductLineItemResponse> productLineItemResponseList = productService.
                 priceProductsForCheckout(productQuantityRequests);
         return ResponseEntity.ok(productLineItemResponseList);

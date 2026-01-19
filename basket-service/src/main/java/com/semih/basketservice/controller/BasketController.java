@@ -23,6 +23,12 @@ public class BasketController {
         return ResponseEntity.ok(basketService.saveBasket(request));
     }
 
+    @PostMapping("/checkout")
+    public ResponseEntity<String> checkoutBasket() {
+        String result = basketService.checkoutBasket();
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/items")
     public ResponseEntity<BasketResponse> getActiveBasket() {
         return ResponseEntity.ok(basketService.getActiveBasket());

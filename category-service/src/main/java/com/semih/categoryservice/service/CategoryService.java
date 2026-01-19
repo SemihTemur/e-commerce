@@ -30,9 +30,9 @@ public class CategoryService {
     }
 
 
-    Category getCategoryOrThrow(Long categoryId){
+    Category getCategoryOrThrow(Long categoryId) {
         return categoryRepository.findById(categoryId)
-                .orElseThrow(()-> new CategoryNotFoundException("Kategori bulunamadı. ID: " + categoryId));
+                .orElseThrow(() -> new CategoryNotFoundException("Kategori bulunamadı. ID: " + categoryId));
     }
 
     //Save
@@ -48,42 +48,11 @@ public class CategoryService {
                 .collect(Collectors.toList());
     }
 
-    public void validateCategoryExistsById(Long categoryId){
-        if(!categoryRepository.existsById(categoryId)){
-            throw new CategoryNotFoundException("Kategori bulunamadı. ID: " + categoryId);
-        }
-
-    }
-
     @Transactional(readOnly = true)
-    public CategoryWithSubCategoriesResponse getCategoryWithSubCategoriesById(Long categoryId){
+    public CategoryWithSubCategoriesResponse getCategoryWithSubCategoriesById(Long categoryId) {
         Category category = getCategoryOrThrow(categoryId);
         return mapToCategoryWithSubCategoriesResponse(category);
     }
-
-//    @Transactional(readOnly = true)
-//    public List<ProductCategoryInfoResponse> getCategoryWithSubCategoriesForProductList(
-//            List<ProductCategoryInfoRequest> productCategoryInfoRequests)  {
-//
-//        List<ProductCategoryInfoResponse> productCategoryResponses = new ArrayList<>();
-//
-//        for(ProductCategoryInfoRequest productCategoryInfoRequest:productCategoryInfoRequests){
-//            Category category = getCategoryOrThrow(productCategoryInfoRequest.categoryId());
-//
-//            Set<Long> subCategoryRequestIdList = productCategoryInfoRequest.subCategoryInfoRequests().stream()
-//                    .map(SubCategoryInfoRequest::subCategoryId)
-//                    .collect(Collectors.toSet());
-//
-//            List<SubCategoryInfoResponse>  subCategoryInfoResponseList = getSubCategoryInfoResponseList(category,
-//                    subCategoryRequestIdList);
-//
-//            productCategoryResponses.add(new ProductCategoryInfoResponse(category.getId(),category.getCategoryName()
-//                    ,subCategoryInfoResponseList));
-//
-//        }
-//
-//        return productCategoryResponses;
-//    }
 
     public List<ProductCategoryInfoResponse> getCategoryWithSubCategoriesForProductList(
             List<ProductCategoryAndSubCategoryRequest> requests) {
@@ -109,55 +78,29 @@ public class CategoryService {
             return new ProductCategoryInfoResponse(category.getId(), category.getCategoryName(), subResponses);
         }).toList();
     }
-    private List<SubCategoryInfoResponse> getSubCategoryInfoResponseList(Category category,
-                                                                         Set<Long> subCategoryRequestIdList){
-        List<SubCategoryInfoResponse> subCategoryInfoResponseList = new ArrayList<>();
-
-        Map<Long, SubCategory> subCategoryMap = category.getSubCategory().stream()
-                .collect(Collectors.toMap(SubCategory::getId, sc -> sc));
-
-        for(Long requestedId : subCategoryRequestIdList){
-            SubCategory subCategory = subCategoryMap.get(requestedId);
-            if(subCategory == null){
-                throw new SubCategoryNotFoundException("Alt kategori bulunamadı. ID: " + requestedId);
-            }
-            subCategoryInfoResponseList.add(new SubCategoryInfoResponse(subCategory.getId(),
-                    subCategory.getSubCategoryName()));
-        }
-
-        return subCategoryInfoResponseList;
-    }
-
 
     @Transactional(readOnly = true)
-    public List<CategoryWithSubCategoriesResponse> getAllCategoryWithSubCategories(){
-        return categoryRepository.findAll().stream()
-                .map(this::mapToCategoryWithSubCategoriesResponse)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public void existsCategoryWithSubCategories(CategoryValidationRequest categoryValidationRequest){
+    public void existsCategoryWithSubCategories(CategoryValidationRequest categoryValidationRequest) {
         Category category = getCategoryOrThrow(categoryValidationRequest.categoryId());
-        validateSubCategories(category,categoryValidationRequest.subCategoriesId());
+        validateSubCategories(category, categoryValidationRequest.subCategoriesId());
     }
 
     @Transactional(readOnly = true)
-    public void validateCategoryHierarchy(List<CategoryValidationRequest> categoryValidationRequestList){
-        for(CategoryValidationRequest categoryValidationRequest:categoryValidationRequestList){
+    public void validateCategoryHierarchy(List<CategoryValidationRequest> categoryValidationRequestList) {
+        for (CategoryValidationRequest categoryValidationRequest : categoryValidationRequestList) {
             Category category = getCategoryOrThrow(categoryValidationRequest.categoryId());
-            validateSubCategories(category,categoryValidationRequest.subCategoriesId());
+            validateSubCategories(category, categoryValidationRequest.subCategoriesId());
         }
     }
 
     //Put
     public CategoryResponse updateCategoryById(Long categoryId, CategoryRequest categoryRequest) {
-        Category updatedCategory = mapToCategoryUpdate(categoryId,categoryRequest);
+        Category updatedCategory = mapToCategoryUpdate(categoryId, categoryRequest);
         return mapToCategoryResponse(categoryRepository.save(updatedCategory));
     }
 
     //Delete
-    public Boolean deleteCategoryById(Long categoryId){
+    public Boolean deleteCategoryById(Long categoryId) {
         Category deletedCategory = getCategoryOrThrow(categoryId);
         categoryRepository.delete(deletedCategory);
         return true;
@@ -166,40 +109,42 @@ public class CategoryService {
     //toResponse
     private CategoryWithSubCategoriesResponse mapToCategoryWithSubCategoriesResponse(Category category) {
         List<SubCategoryResponse> subCategoryResponseList = new ArrayList<>();
-        for(SubCategory subCategory:category.getSubCategory()){
+
+        for (SubCategory subCategory : category.getSubCategory()) {
             SubCategoryResponse subCategoryResponse = new SubCategoryResponse(subCategory.getId(),
-                    subCategory.getSubCategoryName(),subCategory.getCreatedAt(),subCategory.getUpdatedAt());
+                    subCategory.getSubCategoryName(), subCategory.getCreatedAt(), subCategory.getUpdatedAt());
             subCategoryResponseList.add(subCategoryResponse);
         }
-        return new CategoryWithSubCategoriesResponse(category.getId(),category.getCategoryName()
-                ,subCategoryResponseList,category.getCreatedAt(),category.getUpdatedAt()
+
+        return new CategoryWithSubCategoriesResponse(category.getId(), category.getCategoryName()
+                , subCategoryResponseList, category.getCreatedAt(), category.getUpdatedAt()
         );
     }
 
 
-    private CategoryResponse mapToCategoryResponse(Category category){
+    private CategoryResponse mapToCategoryResponse(Category category) {
         return new CategoryResponse(category.getId(), category.getCategoryName(), category.getCreatedAt(),
                 category.getUpdatedAt());
     }
 
     //toEntity
-    private Category mapToCategoryUpdate(Long categoryId, CategoryRequest categoryRequest){
+    private Category mapToCategoryUpdate(Long categoryId, CategoryRequest categoryRequest) {
         Category updatedCategory = getCategoryOrThrow(categoryId);
         updatedCategory.setCategoryName(categoryRequest.categoryName());
         return updatedCategory;
     }
 
-    private void validateSubCategories(Category category, List<Long> subCategoriesId){
-        Set<Long> existingIds  = category.getSubCategory().stream().map(SubCategory::getId)
-                .collect(Collectors.toSet());;
+    private void validateSubCategories(Category category, List<Long> subCategoriesId) {
+        Set<Long> existingIds = category.getSubCategory().stream().map(SubCategory::getId)
+                .collect(Collectors.toSet());
 
-        for(Long subCategoryId:subCategoriesId){
-            if(!existingIds.contains(subCategoryId))
+        for (Long subCategoryId : subCategoriesId) {
+            if (!existingIds.contains(subCategoryId))
                 throw new SubCategoryNotFoundException("Alt kategori bulunamadı. ID: " + subCategoryId);
         }
     }
 
-    private Category mapToCategoryEntity(CategoryRequest categoryRequest){
+    private Category mapToCategoryEntity(CategoryRequest categoryRequest) {
         return new Category(categoryRequest.categoryName());
     }
 
