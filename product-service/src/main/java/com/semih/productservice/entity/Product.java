@@ -1,6 +1,7 @@
 package com.semih.productservice.entity;
 
 import com.semih.common.constant.EntityStatus;
+import com.semih.productservice.constant.ProductStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -29,7 +30,7 @@ public class Product {
     private BigDecimal productPrice;
 
     @Enumerated(EnumType.STRING)
-    private EntityStatus status = EntityStatus.PENDING;
+    private ProductStatus status = ProductStatus.PENDING;
 
     private String statusReason = "Product registration created, processing...";
 
@@ -53,6 +54,15 @@ public class Product {
 
 
     public Product() {
+    }
+
+    public Product(String sellerId, String productName, String productDescription,
+                   BigDecimal productPrice) {
+        this.sellerId = sellerId;
+        this.productName = productName;
+        this.productDescription = productDescription;
+        this.productPrice = productPrice;
+        this.statusReason = statusReason;
     }
 
     public Product(String sellerId, String productName, String productDescription,
@@ -110,11 +120,11 @@ public class Product {
         this.productPrice = productPrice;
     }
 
-    public EntityStatus getStatus() {
+    public ProductStatus getStatus() {
         return status;
     }
 
-    public void setStatus(EntityStatus status) {
+    public void setStatus(ProductStatus status) {
         this.status = status;
     }
 

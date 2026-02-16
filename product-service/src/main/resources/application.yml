@@ -8,6 +8,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        type:
+          json_format_mapper: jackson
 
   kafka:
     bootstrap-servers:
@@ -22,15 +26,15 @@ spring:
         retries: 3
         enable.idempotence: true
     consumer:
-      group-id: product-inventory-response-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+      group-id: product-response-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      enable-auto-commit: false
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "com.semih.*"
+        spring.json.use.type.headers: true
     properties:
-      # Asıl objeyi çevirecek olan delege sınıf (JsonDeserializer)
-      spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-      # Paketi tanıması lazım (Common içindeki event nesnesi)
-      spring.json.trusted.packages: "com.semih.common.dto"
       topics:
         product-events: product-events-topic
         product-stock-response-events: product-stock-response-events

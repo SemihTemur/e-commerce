@@ -9,12 +9,15 @@ import com.semih.common.exception.CategoryNotFoundException;
 import com.semih.common.exception.SubCategoryNotFoundException;
 import com.semih.productservice.client.CategoryClient;
 import com.semih.productservice.client.InventoryClient;
+import com.semih.productservice.constant.ProductStatus;
 import com.semih.productservice.dto.request.ProductRequest;
 import com.semih.productservice.dto.response.ProductDetailResponse;
 import com.semih.productservice.dto.response.ProductInfoResponse;
+import com.semih.productservice.entity.ProcessedEvent;
 import com.semih.productservice.entity.Product;
 import com.semih.productservice.entity.ProductCategoryMapping;
 import com.semih.productservice.exception.ProductNotFoundException;
+import com.semih.productservice.repository.ProcessedEventRepository;
 import com.semih.productservice.repository.ProductRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
@@ -32,15 +35,13 @@ public class ProductService {
     private final ProductManager productManager;
 
     private final ProductRepository productRepository;
-
     private final CategoryClient categoryClient;
 
     private final InventoryClient inventoryClient;
 
     private static final Logger log = LoggerFactory.getLogger(ProductService.class);
 
-    public ProductService(ProductManager productManager,
-                          ProductRepository productRepository,
+    public ProductService(ProductManager productManager, ProductRepository productRepository,
                           CategoryClient categoryClient, InventoryClient inventoryClient) {
         this.productManager = productManager;
         this.productRepository = productRepository;
@@ -48,15 +49,25 @@ public class ProductService {
         this.inventoryClient = inventoryClient;
     }
 
-    @CircuitBreaker(name = "categoryService", fallbackMethod = "createProductCategoryServiceFallback")
+
     public String createProduct(ProductRequest productRequest){
         if(productRequest.categoryRequestList()!=null && !productRequest.categoryRequestList().isEmpty())
-            categoryClient.validateCategoryHierarchy(productRequest.categoryRequestList());
+            validateCategories(productRequest.categoryRequestList());
 
         Product savedProduct = mapToCategoryEntity(productRequest);
         productManager.persistProductAndOutbox(savedProduct,productRequest.quantity());
 
         return "Succesfully";
+    }
+
+    @CircuitBreaker(
+            name = "categoryService",
+            fallbackMethod = "categoryValidationFallback"
+    )
+    public void validateCategories(List<CategoryValidationRequest> categoryRequestList) {
+        categoryClient.validateCategoryHierarchy(
+                categoryRequestList
+        );
     }
 
     public String createProductCategoryServiceFallback(ProductRequest productRequest, Throwable t) {
@@ -379,54 +390,6 @@ public class ProductService {
         return true;
     }
 
-    //For kafka
-    @Transactional
-    public void completeProductStatus(ProductStockResponseEvent productStockResponseEvent){
-        productRepository
-                .findByIdAndPendingStatus(productStockResponseEvent.productId())
-                .ifPresentOrElse(
-                        product -> {
-                            applyStatusFromStockResponse(product,productStockResponseEvent);
-
-                            log.info(
-                                    "Product {} status updated to {}",
-                                    product.getId(),
-                                    product.getStatus()
-                            );
-                        },
-                        () -> log.warn(
-                                "No PENDING product found to update: {}",
-                                productStockResponseEvent.productId()
-                        )
-                );
-
-    }
-
-    private void applyStatusFromStockResponse(
-            Product product,
-            ProductStockResponseEvent productStockResponseEvent
-    ) {
-        switch (productStockResponseEvent.operation()) {
-
-            case ACTIVE -> product.setStatus(EntityStatus.ACTIVE);
-
-            case UPDATING -> product.setStatus(EntityStatus.UPDATING);
-
-            case REJECTED -> product.setStatus(EntityStatus.REJECTED);
-
-            default -> {
-                log.warn(
-                        "Unhandled operation status: {} for productId: {}",
-                        productStockResponseEvent.operation(),
-                        product.getId()
-                );
-                return;
-            }
-        }
-
-        product.setStatusReason(productStockResponseEvent.message());
-    }
-
     private String getUserId(){
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -473,8 +436,7 @@ public class ProductService {
                 getUserId(),
                 productRequest.productName(),
                 productRequest.productDescription(),
-                productRequest.productPrice(),
-                "Waiting for review"
+                productRequest.productPrice()
         );
 
     }

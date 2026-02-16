@@ -36,6 +36,7 @@ public class CategoryService {
     }
 
     //Save
+    @Transactional
     public CategoryResponse createCategory(CategoryRequest categoryRequest) {
         Category category = mapToCategoryEntity(categoryRequest);
         return mapToCategoryResponse(categoryRepository.save(category));
@@ -94,12 +95,14 @@ public class CategoryService {
     }
 
     //Put
+    @Transactional
     public CategoryResponse updateCategoryById(Long categoryId, CategoryRequest categoryRequest) {
         Category updatedCategory = mapToCategoryUpdate(categoryId, categoryRequest);
         return mapToCategoryResponse(categoryRepository.save(updatedCategory));
     }
 
     //Delete
+    @Transactional
     public Boolean deleteCategoryById(Long categoryId) {
         Category deletedCategory = getCategoryOrThrow(categoryId);
         categoryRepository.delete(deletedCategory);

@@ -1,6 +1,7 @@
 package com.semih.inventoryservice.service;
 
 import com.semih.common.constant.EntityStatus;
+import com.semih.common.constant.OutboxEventType;
 import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.request.ProductStockEvent;
 import com.semih.common.dto.response.ProductStockResponse;
@@ -30,26 +31,36 @@ public class InventoryService {
         this.inventoryRepository = inventoryRepository;
     }
 
-
     public ProductStockResponseEvent executeInventoryOperation(ProductStockEvent event) {
-        return switch (event.eventType()) {
-            case CREATED -> {
-                createInventory(event);
-                yield createSuccessResponse(event, EntityStatus.ACTIVE,
-                        "Product inventory has been created successfully.");
-            }
-            case UPDATED -> {
-                updateInventory(event);
-                // Güncelleme bittiği için tekrar ACTIVE olmalı
-                yield createSuccessResponse(event, EntityStatus.ACTIVE,
-                        "Product stock has been updated successfully.");
-            }
-            case DELETED -> {
-                deleteInventory(event.productId());
-                yield createSuccessResponse(event, EntityStatus.DELETING,
-                        "Product inventory has been deleted successfully.");
-            }
-        };
+        try {
+            return switch (event.eventType()) {
+                case CREATED -> {
+                    createInventory(event);
+                    yield createResponse(event, EntityStatus.ACTIVE, event.eventType(),
+                            "Product inventory has been created successfully.");
+                }
+                case UPDATED -> {
+                    updateInventory(event);
+                    yield createResponse(event, EntityStatus.ACTIVE,event.eventType(),
+                            "Product stock has been updated successfully.");
+                }
+                case DELETED -> {
+                    deleteInventory(event.productId());
+                    yield createResponse(event, EntityStatus.ACTIVE,event.eventType(),
+                            "Product inventory has been deleted successfully.");
+                }
+            };
+        } catch (Exception ex) {
+            log.error("Inventory operation failed for product: {} | Error: {}",
+                    event.productId(), ex.getMessage());
+
+            // İşte burada REJECTED dönüyoruz ki Product Service ne olduğunu anlasın
+            return createResponse(
+                    event,
+                    EntityStatus.REJECTED,event.eventType(),
+                    "Inventory Error: " + ex.getMessage()
+            );
+        }
     }
 
     public void createInventory(ProductStockEvent event) {
@@ -111,12 +122,13 @@ public class InventoryService {
         inventoryRepository.delete(inventory);
     }
 
-    private ProductStockResponseEvent createSuccessResponse(ProductStockEvent event, EntityStatus status,
-                                                            String message) {
+    private ProductStockResponseEvent createResponse(ProductStockEvent event, EntityStatus status,
+                                                     OutboxEventType outboxEventType, String message) {
         return new ProductStockResponseEvent(
                 event.eventId(),
                 event.productId(),
                 status,
+                outboxEventType,
                 message
         );
     }

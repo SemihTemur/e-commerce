@@ -3,19 +3,28 @@ package com.semih.productservice.service;
 import com.semih.common.constant.EntityStatus;
 import com.semih.common.constant.OutboxEventType;
 import com.semih.common.dto.request.CategoryValidationRequest;
+import com.semih.common.dto.response.ProductStockResponseEvent;
 import com.semih.common.exception.CategoryNotFoundException;
 import com.semih.common.exception.SubCategoryNotFoundException;
+import com.semih.productservice.constant.ProductStatus;
 import com.semih.productservice.dto.request.ProductRequest;
+import com.semih.productservice.entity.ProcessedEvent;
 import com.semih.productservice.entity.Product;
 import com.semih.productservice.entity.ProductCategoryMapping;
-import com.semih.productservice.exception.NotFoundException;
+import com.semih.productservice.entity.ProductUpdate;
 import com.semih.productservice.exception.ProductNotFoundException;
+import com.semih.productservice.repository.ProcessedEventRepository;
 import com.semih.productservice.repository.ProductRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+
 
 @Service
 public class ProductManager {
@@ -24,18 +33,51 @@ public class ProductManager {
 
     private final OutboxService outboxService;
 
-    public ProductManager(ProductRepository productRepository, OutboxService outboxService) {
+    private final ProductUpdateService productUpdateService;
+
+    private final ProcessedEventRepository processedEventRepository;
+
+    private final ProductDeleteService productDeleteService;
+
+    private static final Logger logger = LoggerFactory.getLogger(ProductManager.class);
+
+    public ProductManager(ProductRepository productRepository, OutboxService outboxService,
+                          ProductUpdateService productUpdateService,
+                          ProcessedEventRepository processedEventRepository,
+                          ProductDeleteService productDeleteService) {
         this.productRepository = productRepository;
         this.outboxService = outboxService;
+        this.productUpdateService = productUpdateService;
+        this.processedEventRepository = processedEventRepository;
+        this.productDeleteService = productDeleteService;
     }
 
     // create
+    // kafkadan onay gelene kadar pendıngde
     @Transactional
     public void persistProductAndOutbox(Product savedProduct,Integer quantity) {
         // Ürünü kaydet
         productRepository.save(savedProduct);
 
         outboxService.saveProductOutboxEvent(savedProduct,OutboxEventType.CREATED,quantity);
+    }
+
+    // kafkadan onay gelırse actıve çek
+    @Transactional
+    public void applyCreate(Product product,String reasonMessage){
+        product.setStatus(ProductStatus.ACTIVE);
+        product.setStatusReason(reasonMessage);
+
+        productRepository.save(product);
+    }
+
+    // kafkadan red gelırse rejected çek
+    @Transactional
+    public void applyRejected(Product product,String reasonMessage){
+        product.setStatus(ProductStatus.REJECTED);
+        product.setStatusReason(reasonMessage);
+
+        productRepository.save(product);
     }
 
     @Transactional
@@ -59,36 +101,90 @@ public class ProductManager {
     }
 
     // update
+    // önce ınventory-servısten cevap gelene kadar processıngde bekle
     @Transactional
-    public void updateProductCore(Long productId,ProductRequest productRequest){
-        Product updatedProduct = getProductOrThrow(productId);
+    public void updateProductCore(Long productId, ProductRequest productRequest) {
+        Product product = getProductOrThrow(productId);
 
-        updateBasicFields(updatedProduct, productRequest);
+        // 1️⃣ Product durum
+        product.setStatus(ProductStatus.PROCESSING);
+        product.setStatusReason("Update request sent to inventory service");
 
-        if (productRequest.categoryRequestList() != null) {
-            List<ProductCategoryMapping> newMappings = mapToProductCategoryMappingEmbeddableList(
-                    productRequest.categoryRequestList()
-            );
-            updatedProduct.getCategoryMappings().addAll(newMappings);
-        }
+        // 2️⃣ Update taslağı → DELEGE
+        productUpdateService.createUpdateDraft(product, productRequest);
 
-        updatedProduct.setStatus(EntityStatus.UPDATING);
-        updatedProduct.setStatusReason("Güncelleme isteği envantere gönderildi...");
+        // 3️⃣ Outbox
+        outboxService.saveProductOutboxEvent(
+                product,
+                OutboxEventType.UPDATED,
+                productRequest.quantity()
+        );
+    }
 
-        productRepository.save(updatedProduct);
+    // cevap actıve ıse ıslemı yap
+    @Transactional
+    public void applyUpdate(Product product,String reasonMessage) {
+        ProductUpdate productUpdate = productUpdateService.getProductUpdateFindById(product.getId());
 
-        outboxService.saveProductOutboxEvent(updatedProduct, OutboxEventType.UPDATED,
-                productRequest.quantity());
+        product.setProductName(productUpdate.getName());
+        product.setProductDescription(productUpdate.getProductDescription());
+        product.setProductPrice(productUpdate.getPrice());
+
+        product.setStatus(ProductStatus.ACTIVE);
+        product.setStatusReason(reasonMessage);
+
+        productRepository.save(product);
+
+        productUpdateService.applyApprovedUpdate(productUpdate);
+    }
+
+    // cevap rejected ise işlem yap
+    @Transactional
+    public void rejectUpdate(Product product,String reasonMessage) {
+        product.setStatus(ProductStatus.REJECTED);
+        product.setStatusReason(reasonMessage);
+
+        productRepository.save(product);
+
+        productUpdateService.rejectUpdateApply(product.getId());
+    }
+
+    // silme isteği gonder
+    @Transactional
+    public void deleteProduct(Long productId){
+        Product product = getProductOrThrow(productId);
+
+        product.setStatus(ProductStatus.PROCESSING);
+        product.setStatusReason("Deletion request is pending approval.");
+
+        productDeleteService.createDeleteRequest(product);
+
+        outboxService.saveProductOutboxEvent(
+                product,
+                OutboxEventType.DELETED,
+                0
+        );
+    }
+
+    // sılme ıslemı actıve ıse
+    @Transactional
+    public void deleteProductPermanently(Product product,String reasonMessage) {
+        product.setStatus(ProductStatus.DELETED);
+        product.setStatusReason(reasonMessage);
+
+        productRepository.save(product);
+
+        productDeleteService.confirmDeletionApply(product.getId());
     }
 
     @Transactional
-    public void deleteProduct(Long productId){
-        Product deletedProduct = getProductOrThrow(productId);
+    public void rejectedDeleteProduct(Product product,String reasonMessage){
+        product.setStatus(ProductStatus.REJECTED);
+        product.setStatusReason(reasonMessage);
 
-        deletedProduct.setStatus(EntityStatus.DELETING);
-        deletedProduct.setStatusReason("Silme işlemi onay bekliyor...");
+        productRepository.save(product);
 
-        outboxService.saveProductOutboxEvent(deletedProduct,OutboxEventType.DELETED,0);
+        productDeleteService.rejectDeletionApply(product.getId());
     }
 
     @Transactional
@@ -116,6 +212,47 @@ public class ProductManager {
             throw new SubCategoryNotFoundException(
                     "Sub Category not found " + subCategoryId
             );
+        }
+    }
+
+    @Transactional
+    public void completeProductStatus(ProductStockResponseEvent event) {
+        if (processedEventRepository.existsById(event.eventId())) {
+            logger.info("Event zaten işlenmiş, atlanıyor: {}", event.eventId());
+            return;
+        }
+
+        try {
+            Product product = getProductOrThrow(event.productId());
+            String reasonMessage = event.reason();
+
+            processStatusChange(event, product, reasonMessage);
+
+            processedEventRepository.saveAndFlush(new ProcessedEvent(event.eventId()));
+
+        } catch (ObjectOptimisticLockingFailureException | DataIntegrityViolationException e) {
+            logger.warn("Mükerrer event veya yarış durumu yakalandı, sorun yok: {}", event.eventId());
+
+        } catch (Exception e) {
+            logger.error("Event işlenirken hata oluştu: {}", event.eventId(), e);
+            throw e;
+        }
+    }
+
+    public void processStatusChange(ProductStockResponseEvent event, Product product, String reasonMessage) {
+        switch (event.outboxEventType()) {
+            case CREATED -> {
+                if (event.operation() == EntityStatus.ACTIVE) applyCreate(product, reasonMessage);
+                else applyRejected(product, reasonMessage);
+            }
+            case UPDATED -> {
+                if (event.operation() == EntityStatus.ACTIVE) applyUpdate(product, reasonMessage);
+                else rejectUpdate(product, reasonMessage);
+            }
+            case DELETED -> {
+                if (event.operation() == EntityStatus.ACTIVE) deleteProductPermanently(product, reasonMessage);
+                else rejectedDeleteProduct(product, reasonMessage);
+            }
         }
     }
 

@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.ExecutionException;
+
 @Component
 public class ProductStockResponseProducer {
 
@@ -17,7 +19,7 @@ public class ProductStockResponseProducer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void send(ProductStockResponseEvent response) {
+    public void send(ProductStockResponseEvent response) throws ExecutionException, InterruptedException {
         kafkaTemplate.send(productStockResponseEventsTopic,
                 response.productId(),
                 response);

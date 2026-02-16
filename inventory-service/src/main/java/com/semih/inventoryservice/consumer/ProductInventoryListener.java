@@ -1,14 +1,12 @@
-package com.semih.inventoryservice.listener;
+package com.semih.inventoryservice.consumer;
 
 import com.semih.common.dto.request.ProductStockEvent;
-import org.springframework.kafka.annotation.KafkaHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.stereotype.Component;
 
-@KafkaListener(
-        topics = "${spring.kafka.properties.topics.product-events}",
-        groupId = "${spring.kafka.consumer.group-id}"
-)
+
+@Component
 public class ProductInventoryListener {
 
     private final ProductStockEventConsumer productStockEventConsumer;
@@ -17,7 +15,10 @@ public class ProductInventoryListener {
         this.productStockEventConsumer = productStockEventConsumer;
     }
 
-    @KafkaHandler
+    @KafkaListener(
+            topics = "${spring.kafka.properties.topics.product-events}",
+            groupId = "${spring.kafka.consumer.group-id}"
+    )
     public void handleProductStock(@Payload ProductStockEvent productStockEvent){
         productStockEventConsumer.consume(productStockEvent);
     }

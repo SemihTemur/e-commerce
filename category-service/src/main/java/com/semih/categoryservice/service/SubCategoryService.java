@@ -8,6 +8,7 @@ import com.semih.categoryservice.repository.SubCategoryRepository;
 import com.semih.common.exception.CategoryNotFoundException;
 import com.semih.common.exception.SubCategoryNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,6 +24,7 @@ public class SubCategoryService {
     }
 
     //Post
+    @Transactional
     public SubCategoryResponse createSubCategory(SubCategoryCreateRequest subCategoryCreateRequest){
          SubCategory savedDubCategory = subCategoryRepository.save(mapToSubCategoryEntity(
                  subCategoryCreateRequest)
@@ -50,6 +52,7 @@ public class SubCategoryService {
     }
 
     //Put
+    @Transactional
     public SubCategoryResponse updateSubCategoryById(Long id, SubCategoryUpdateRequest subCategoryUpdateRequest){
         SubCategory updatedSubCategory = subCategoryRepository.save(
                 mapToSubCategoryUpdate(id,subCategoryUpdateRequest)
@@ -58,6 +61,7 @@ public class SubCategoryService {
     }
 
     //Delete
+    @Transactional
     public Boolean deleteSubCategoryById(Long subCategoryId){
         SubCategory deletedSubCategory = getSubCategoryOrThrow(subCategoryId);
         subCategoryRepository.delete(deletedSubCategory);

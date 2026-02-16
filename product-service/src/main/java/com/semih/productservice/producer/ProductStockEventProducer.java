@@ -12,18 +12,16 @@ public class ProductStockEventProducer {
 
     private static final Logger log = LoggerFactory.getLogger(ProductStockEventProducer.class);
 
-    private final KafkaTemplate<Long, ProductStockEvent> kafkaTemplate;
+    private final KafkaTemplate<String, ProductStockEvent> kafkaTemplate;
 
     @Value("${spring.kafka.properties.topics.product-events}")
     private String productEventsTopic;
 
-    public ProductStockEventProducer(
-            KafkaTemplate<Long, ProductStockEvent> kafkaTemplate
-    ) {
+    public ProductStockEventProducer(KafkaTemplate<String, ProductStockEvent> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void send(ProductStockEvent event, Long key) {
+    public void send(ProductStockEvent event, String key) {
         try {
             kafkaTemplate.send(productEventsTopic, key, event).get();
 

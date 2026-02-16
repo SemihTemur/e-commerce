@@ -26,9 +26,8 @@ public class OutboxMessage {
     @Column(nullable = false)
     private OutboxEventType type;
 
-    @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)
-    private Object payload;
+    private Integer payload;
 
     private boolean processed = false;
 
@@ -38,7 +37,7 @@ public class OutboxMessage {
     public OutboxMessage() {
     }
 
-    public OutboxMessage(Long aggregateId, OutboxEventType type, Object payload) {
+    public OutboxMessage(Long aggregateId, OutboxEventType type, Integer payload) {
         this.aggregateId = aggregateId;
         this.type = type;
         this.payload = payload;
@@ -72,11 +71,11 @@ public class OutboxMessage {
         this.aggregateId = aggregateId;
     }
 
-    public Object getPayload() {
+    public Integer getPayload() {
         return payload;
     }
 
-    public void setPayload(Object payload) {
+    public void setPayload(Integer payload) {
         this.payload = payload;
     }
 

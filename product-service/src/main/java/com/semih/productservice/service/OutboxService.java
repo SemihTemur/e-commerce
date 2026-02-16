@@ -20,22 +20,20 @@ import java.util.List;
 public class OutboxService {
     private final OutboxMessageRepository outboxMessageRepository;
     private final ProductStockEventProducer productStockEventProducer;
-    private final ObjectMapper objectMapper;
 
     private static final Logger log = LoggerFactory.getLogger(OutboxService.class);
 
     public OutboxService(OutboxMessageRepository outboxMessageRepository,
-                         ProductStockEventProducer productStockEventProducer, ObjectMapper objectMapper) {
+                         ProductStockEventProducer productStockEventProducer) {
         this.outboxMessageRepository = outboxMessageRepository;
         this.productStockEventProducer = productStockEventProducer;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
     public void sendSingleMessageWithTransaction(OutboxMessage outboxMessage) throws RuntimeException {
         ProductStockEvent event = convertToEvent(outboxMessage);
 
-        productStockEventProducer.send(event,outboxMessage.getAggregateId());
+        productStockEventProducer.send(event,outboxMessage.getAggregateId().toString());
 
         outboxMessage.setProcessed(true);
         outboxMessageRepository.save(outboxMessage);
@@ -46,10 +44,7 @@ public class OutboxService {
         OutboxMessage outboxMessage = new OutboxMessage(
                 product.getId(),
                 outboxEventType,
-                new ProductMessagePayload(
-                        product.getId(),
-                        quantity
-                )
+                quantity
         );
 
         outboxMessageRepository.save(outboxMessage);
@@ -64,26 +59,11 @@ public class OutboxService {
                 outboxMessage.getId(),
                 outboxMessage.getAggregateId(),
                 outboxMessage.getType(),
-                extractQuantity(outboxMessage.getPayload()),
+                outboxMessage.getPayload(),
                 System.currentTimeMillis()
         );
     }
 
-    private Integer extractQuantity(Object payload) {
-        if (payload instanceof ProductMessagePayload productPayload) {
-            return productPayload.quantity();
-        }
 
-        if (payload != null) {
-            try {
-                log.info("Payload Map olarak algılandı, dönüştürülüyor...");
-                return objectMapper.convertValue(payload, ProductMessagePayload.class).quantity();
-            } catch (Exception e) {
-                throw new RuntimeException("Payload formatı ProductMessagePayload ile uyumsuz!", e);
-            }
-        }
-
-        throw new RuntimeException("Outbox payload'ı boş veya geçersiz! Mesaj işlenemez.");
-    }
 
 }
