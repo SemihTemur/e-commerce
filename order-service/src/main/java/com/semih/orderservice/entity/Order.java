@@ -24,6 +24,8 @@ public class Order {
 
     private BigDecimal totalAmount;
 
+    private String reasonMessage;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
@@ -36,10 +38,11 @@ public class Order {
     public Order() {
     }
 
-    public Order(String userId,OrderStatus orderStatus, BigDecimal totalAmount) {
+    public Order(String userId,OrderStatus orderStatus,String reasonMessage, BigDecimal totalAmount) {
         this.userId = userId;
         this.totalAmount = totalAmount;
         this.orderStatus = orderStatus;
+        this.reasonMessage = reasonMessage;
     }
 
     public void addOrderItem(OrderItem orderItem){
@@ -68,6 +71,14 @@ public class Order {
 
     public BigDecimal getTotalAmount() {
         return totalAmount;
+    }
+
+    public String getReasonMessage() {
+        return reasonMessage;
+    }
+
+    public void setReasonMessage(String reasonMessage) {
+        this.reasonMessage = reasonMessage;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -32,6 +32,8 @@ public class Basket {
             orphanRemoval = true)
     private List<BasketItem> basketItems = new ArrayList<>();
 
+    @Version
+    private Long version;
 
     public Basket() {
     }
@@ -51,6 +53,10 @@ public class Basket {
     public void removeItem(BasketItem basketItem) {
         basketItems.remove(basketItem);
         basketItem.setBasket(null);
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public String getUserId() {

@@ -40,11 +40,11 @@ public class InventoryController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping(VALIDATE_FOR_CHECKOUT)
-    public ResponseEntity<Void> checkAvailabilityByProductIds(@RequestBody List<ProductQuantityRequest>
-                                                                          productQuantityRequests){
-        inventoryService.checkAvailabilityByProductIds(productQuantityRequests);
-        return ResponseEntity.noContent().build();
-    }
+//    @PostMapping(VALIDATE_FOR_CHECKOUT)
+//    public ResponseEntity<Void> checkAvailabilityByProductIds(@RequestBody List<ProductQuantityRequest>
+//                                                                          productQuantityRequests){
+//        inventoryService.checkAvailabilityByProductIds(productQuantityRequests);
+//        return ResponseEntity.noContent().build();
+//    }
 
 }

@@ -1,8 +1,5 @@
 package com.semih.basketservice.service;
 
-import com.semih.basketservice.client.InventoryClient;
-import com.semih.basketservice.client.OrderClient;
-import com.semih.basketservice.client.ProductClient;
 import com.semih.basketservice.dto.response.BasketItemResponse;
 import com.semih.basketservice.dto.response.BasketResponse;
 import com.semih.basketservice.entity.Basket;
@@ -11,8 +8,6 @@ import com.semih.basketservice.entity.BasketStatus;
 import com.semih.basketservice.exception.BasketItemNotFoundException;
 import com.semih.basketservice.exception.BasketNotFoundException;
 import com.semih.basketservice.repository.BasketRepository;
-import com.semih.common.dto.request.OrderItemRequest;
-import com.semih.common.dto.request.OrderRequest;
 import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.response.BasketProductResponse;
 import com.semih.common.dto.response.ProductLineItemResponse;
@@ -24,76 +19,70 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 public class BasketService {
 
-    private final BasketRepository basketRepository;
-    private final ProductClient productClient;
-    private final InventoryClient inventoryClient;
-    private final OrderClient orderClient;
+    private final BasketManager basketManager;
 
-    public BasketService(BasketRepository basketRepository, ProductClient productClient,
-                         InventoryClient inventoryClient, OrderClient orderClient) {
-        this.basketRepository = basketRepository;
-        this.productClient = productClient;
-        this.inventoryClient = inventoryClient;
-        this.orderClient = orderClient;
+    private final ProductClientService productClientService;
+
+    private final InventoryClientService inventoryClientService;
+
+    public BasketService(BasketManager basketManager,
+                         ProductClientService productClientService,
+                         InventoryClientService inventoryClientService) {
+        this.basketManager = basketManager;
+        this.productClientService = productClientService;
+        this.inventoryClientService = inventoryClientService;
     }
 
-    @Transactional
+    // feign client ve redis eklemeye calıs
     public String saveBasket(ProductQuantityRequest productQuantityRequest) {
         // Aktif sepeti al
-        Basket basket = findOrCreateActiveBasket();
+        Basket basket = basketManager.findOrCreateActiveBasket();
 
         // Sepetteki itemi bul
         BasketItem basketItem = findByBasketItemByProductId(basket.getBasketItems(),
                 productQuantityRequest.productId());
 
-        // Ürün miktarını doğrula. inventory-service gidip
         validateProductQuantity(productQuantityRequest, basketItem);
 
-        // Eğer item yoksa oluştur
         if (basketItem == null) {
-            basketItem = createBasketItem(productQuantityRequest, basket);
-            basket.addItem(basketItem);
+            BasketItem newItem = createBasketItem(productQuantityRequest, basket);
+            basket.addItem(newItem);
         } else {
-            // Eğer varsa, mevcut quantity ile toplama
             basketItem.setQuantity(basketItem.getQuantity() + productQuantityRequest.quantity());
         }
 
-        // Kaydet
-        basketRepository.save(basket);
+        basketManager.updateBasket(basket);
 
         return "Successfully";
     }
 
-    @Transactional
-    public String checkoutBasket(){
-        Basket activeBasket = findActiveBasketOrNull();
+    public void checkoutBasket() {
+        Basket activeBasket = basketManager.findOrCreateActiveBasket();
         List<BasketItem> basketItemList = activeBasket.getBasketItems();
 
-        List<ProductQuantityRequest> productQuantityRequestList = createProductQuantityRequestList(
-                basketItemList);
 
-        List<ProductLineItemResponse> productLineItemResponseList = productClient.
-                priceProductsForCheckout(productQuantityRequestList).getBody();
+        List<ProductQuantityRequest> productQuantityRequestList =
+                createProductQuantityRequestList(basketItemList);
 
-        OrderRequest orderRequest = createOrderRequest(productLineItemResponseList);
-        orderClient.createOrder(orderRequest);
+        List<ProductLineItemResponse> productLineItemResponseList = productClientService
+                .priceProductsForCheckout(productQuantityRequestList);
 
-        activeBasket.setStatus(BasketStatus.ORDERED);
-
-        return "Succesfully";
+        basketManager.startCheckoutProcess(activeBasket, productLineItemResponseList);
     }
-
 
     @Transactional(readOnly = true)
     public BasketResponse getActiveBasket() {
-        Basket basket = findActiveBasketOrNull();
+        Basket basket = basketManager.findOrCreateActiveBasket();
 
         List<BasketItemResponse> basketItemResponseList = new ArrayList<>();
 
@@ -104,13 +93,14 @@ public class BasketService {
 
     @Transactional
     public String deleteBasketItemByActiveBasket(Long id) {
-        Basket basket = findActiveBasketOrNull();
+        Basket basket = basketManager.findOrCreateActiveBasket();
 
         BasketItem basketItem = findByBasketItemByProductId(basket.getBasketItems(), id);
 
         if (basketItem == null)
             throw new BasketItemNotFoundException("Basket item bulunamadı!!!");
 
+        // dirket olarak o nesne ile ilişkiyi kesiyorumki başkaları kullanmasın alt satırlarda.
         basketItem.setBasket(null);
         basket.getBasketItems().remove(basketItem);
 
@@ -127,20 +117,6 @@ public class BasketService {
         return (String) authentication.getPrincipal();
     }
 
-    private Basket findOrCreateActiveBasket() {
-        String userId = getUserId();
-
-        Optional<Basket> basket = basketRepository.findActiveBasketWithItems(BasketStatus.ACTIVE, userId);
-
-        return basket.orElseGet(() -> basketRepository.save(new Basket(userId, BasketStatus.ACTIVE)));
-    }
-
-    private Basket findActiveBasketOrNull() {;
-        String userId = getUserId();
-
-        Optional<Basket> basket = basketRepository.findActiveBasketWithItems(BasketStatus.ACTIVE, userId);
-        return basket.orElseThrow(() -> new BasketNotFoundException("Aktif Basket Bulunamadı"));
-    }
 
     private BasketItem findByBasketItemByProductId(List<BasketItem> basketItemList, Long id) {
         for (BasketItem basketItem : basketItemList) {
@@ -166,7 +142,7 @@ public class BasketService {
                 totalQuantity
         );
 
-        inventoryClient.checkAvailabilityByProductId(newProductQuantityRequest);
+        inventoryClientService.checkAvailabilityByProductId(newProductQuantityRequest);
     }
 
     private BasketItem createBasketItem(ProductQuantityRequest productQuantityRequest, Basket basket) {
@@ -182,9 +158,8 @@ public class BasketService {
                 .map(BasketItem::getProductId)
                 .toList();
 
-        List<BasketProductResponse> basketProductResponseList = Objects.requireNonNull(
-                productClient.getBasketProductResponse(productIdList).getBody()
-        );
+        List<BasketProductResponse> basketProductResponseList = productClientService.
+                getBasketProducts(productIdList);
 
         Map<Long, BasketProductResponse> basketProductResponseMap = basketProductResponseList.stream()
                 .collect(Collectors.toMap(
@@ -250,34 +225,5 @@ public class BasketService {
 //        return maps;
 //    }
 
-    private OrderRequest createOrderRequest(
-            List<ProductLineItemResponse> productLineItemResponseList) {
-
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        List<OrderItemRequest> orderItemRequests = new ArrayList<>();
-
-        for (ProductLineItemResponse productLineItemResponse : productLineItemResponseList) {
-
-            BigDecimal lineTotal = productLineItemResponse.unitPrice()
-                    .multiply(BigDecimal.valueOf(productLineItemResponse.quantity()))
-                    .setScale(2, RoundingMode.HALF_UP);
-
-            orderItemRequests.add(
-                    new OrderItemRequest(
-                            productLineItemResponse.productId(),
-                            productLineItemResponse.productName(),
-                            productLineItemResponse.unitPrice(),
-                            productLineItemResponse.quantity(),
-                            lineTotal
-                    )
-            );
-
-            totalAmount = totalAmount.add(lineTotal);
-        }
-
-        totalAmount = totalAmount.setScale(2, RoundingMode.HALF_UP);
-
-        return new OrderRequest(totalAmount, orderItemRequests);
-    }
 
 }

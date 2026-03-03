@@ -49,16 +49,16 @@ spring:
 
 resilience4j:
   circuitbreaker:
-    instances:
-      categoryService:
-        registerHealthIndicator: true
-        slidingWindowSize: 10 # Son 10 isteğe bakarak karar ver
-        failureRateThreshold: 50 # İsteklerin %50'si (5 tanesi) teknik hata verirse devreyi aç
-        waitDurationInOpenState: 10000ms # Devre açılınca (sigorta atınca) 10 saniye bekle
-        permittedNumberOfCallsInHalfOpenState: 3 # Düzeldi mi diye 3 istek gönder
-        ignore-exceptions:
-          - feign.FeignException.NotFound
-          - feign.FeignException.BadRequest
+    configs:
+      default:
+        slidingWindowType: COUNT_BASED   # Son N çağrı üzerinden hata oranını hesapla (zaman yerine çağrı sayısı)
+        slidingWindowSize: 50            # Son 50 isteği analiz et (denge için yaygın değer)
+        minimumNumberOfCalls: 20         # En az 20 çağrı olmadan failure rate hesaplama (yanlış alarmı önler)
+        failureRateThreshold: 50         # Hata oranı %50’yi geçerse circuit OPEN olur
+        waitDurationInOpenState: 30s     # Devre açıldıktan sonra 30 sn bekle, sonra HALF_OPEN’a geç
+        permittedNumberOfCallsInHalfOpenState: 10  # Servis iyileşti mi test etmek için izin verilen deneme isteği sayısı
+        automaticTransitionFromOpenToHalfOpenEnabled: true  # Süre dolunca otomatik HALF_OPEN’a geç
+
 
 
 eureka:

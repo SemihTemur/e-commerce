@@ -1,14 +1,9 @@
 package com.semih.productservice.scheduler;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.semih.common.dto.request.ProductStockEvent;
 import com.semih.productservice.entity.OutboxMessage;
-import com.semih.productservice.repository.OutboxMessageRepository;
 import com.semih.productservice.service.OutboxService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

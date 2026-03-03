@@ -1,31 +1,21 @@
 package com.semih.productservice.service;
 
-import com.semih.common.constant.EntityStatus;
 import com.semih.common.dto.request.CategoryValidationRequest;
 import com.semih.common.dto.request.ProductCategoryAndSubCategoryRequest;
 import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.response.*;
-import com.semih.common.exception.CategoryNotFoundException;
-import com.semih.common.exception.SubCategoryNotFoundException;
-import com.semih.productservice.client.CategoryClient;
-import com.semih.productservice.client.InventoryClient;
-import com.semih.productservice.constant.ProductStatus;
 import com.semih.productservice.dto.request.ProductRequest;
 import com.semih.productservice.dto.response.ProductDetailResponse;
 import com.semih.productservice.dto.response.ProductInfoResponse;
-import com.semih.productservice.entity.ProcessedEvent;
 import com.semih.productservice.entity.Product;
 import com.semih.productservice.entity.ProductCategoryMapping;
 import com.semih.productservice.exception.ProductNotFoundException;
-import com.semih.productservice.repository.ProcessedEventRepository;
 import com.semih.productservice.repository.ProductRepository;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,24 +25,25 @@ public class ProductService {
     private final ProductManager productManager;
 
     private final ProductRepository productRepository;
-    private final CategoryClient categoryClient;
 
-    private final InventoryClient inventoryClient;
+    private final CategoryClientService categoryClientService;
+
+    private final InventoryClientService inventoryClientService;
 
     private static final Logger log = LoggerFactory.getLogger(ProductService.class);
 
     public ProductService(ProductManager productManager, ProductRepository productRepository,
-                          CategoryClient categoryClient, InventoryClient inventoryClient) {
+                          CategoryClientService categoryClientService, InventoryClientService InventoryClientService) {
         this.productManager = productManager;
         this.productRepository = productRepository;
-        this.categoryClient = categoryClient;
-        this.inventoryClient = inventoryClient;
+        this.categoryClientService = categoryClientService;
+        this.inventoryClientService = InventoryClientService;
     }
 
 
     public String createProduct(ProductRequest productRequest){
         if(productRequest.categoryRequestList()!=null && !productRequest.categoryRequestList().isEmpty())
-            validateCategories(productRequest.categoryRequestList());
+            categoryClientService.validateCategories(productRequest.categoryRequestList());
 
         Product savedProduct = mapToCategoryEntity(productRequest);
         productManager.persistProductAndOutbox(savedProduct,productRequest.quantity());
@@ -60,25 +51,10 @@ public class ProductService {
         return "Succesfully";
     }
 
-    @CircuitBreaker(
-            name = "categoryService",
-            fallbackMethod = "categoryValidationFallback"
-    )
-    public void validateCategories(List<CategoryValidationRequest> categoryRequestList) {
-        categoryClient.validateCategoryHierarchy(
-                categoryRequestList
-        );
-    }
 
-    public String createProductCategoryServiceFallback(ProductRequest productRequest, Throwable t) {
-        log.error("Category Service unavailable while creating product. Reason: {}", t.getMessage());
-        return "Category service is temporarily unavailable. Please try again later.";
-    }
-
-    @CircuitBreaker(name = "categoryService", fallbackMethod = "addCategoryToProductCategoryServiceFallback")
     public String addCategoryToProduct(Long productId, Long categoryId) {
         // 1. Dış servis çağrısını burada yap (Transaction yok, temiz)
-        categoryClient.validateCategoryExistsById(categoryId);
+        categoryClientService.validateCategoryExists(categoryId);
 
         // 2. Sadece ID'leri gönder, nesneyi Transactional serviste yükle
         productManager.addCategoryAndSave(productId, categoryId);
@@ -86,47 +62,12 @@ public class ProductService {
         return "Successfully";
     }
 
-    public String addCategoryToProductCategoryServiceFallback(
-            Long productId,
-            Long categoryId,
-            Throwable t
-    ) {
-        log.error(
-                "Category Service unavailable while adding category to product. productId={}, categoryId={}",
-                productId,
-                categoryId,
-                t
-        );
 
-        return "Category service is temporarily unavailable. Category could not be added to product.";
-    }
-
-    @CircuitBreaker(name = "categoryService", fallbackMethod = "addSubCategoryToProductCategoryServiceFallback")
     public String addSubCategoryToProduct(Long productId,Long categoryId,Long subCategoryId){
-        categoryClient.validateSubCategoryExists(categoryId,subCategoryId);
-
         productManager.addSubCategoryAndSave(productId,categoryId,subCategoryId);
 
         return "Succesfully";
     }
-
-    public String addSubCategoryToProductCategoryServiceFallback(
-            Long productId,
-            Long categoryId,
-            Long subCategoryId,
-            Throwable t
-    ) {
-        log.error(
-                "Category Service unavailable while adding subcategory to product. productId={}, categoryId={}, subCategoryId={}",
-                productId,
-                categoryId,
-                subCategoryId,
-                t
-        );
-
-        return "Category service is temporarily unavailable. Subcategory could not be added to product.";
-    }
-
 
     // Get
     public List<ProductInfoResponse> getAllProductInfo(){
@@ -136,11 +77,8 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    @CircuitBreaker(name = "inventoryService", fallbackMethod = "priceProductsForCheckoutInventoryServiceFallback")
     public List<ProductLineItemResponse> priceProductsForCheckout(
             List<ProductQuantityRequest> productQuantityRequests) {
-
-        inventoryClient.checkAvailabilityByProductIds(productQuantityRequests);
 
         List<Long> productIds = productQuantityRequests
                 .stream()
@@ -159,19 +97,6 @@ public class ProductService {
                 ));
 
         return mapToProductLineItemResponse(productList, productQuantityRequestMap);
-    }
-
-    public List<ProductLineItemResponse> priceProductsForCheckoutInventoryServiceFallback(
-            List<ProductQuantityRequest> productQuantityRequests,
-            Throwable t
-    ) {
-        log.error(
-                "Inventory Service unavailable during checkout pricing. Requests={}",
-                productQuantityRequests,
-                t
-        );
-
-        return Collections.emptyList();
     }
 
     public List<ProductDetailResponse> getAllProductDetail() {
@@ -248,12 +173,9 @@ public class ProductService {
         }).toList();
     }
 
-    @CircuitBreaker(name = "inventoryService", fallbackMethod = "fetchStockMapInventoryServiceFallback")
     public Map<Long, ProductStockResponse> fetchStockMap(List<Long> productIdList) {
 
-        List<ProductStockResponse> stockList = inventoryClient
-                .getStockForProducts(productIdList)
-                .getBody();
+        List<ProductStockResponse> stockList = inventoryClientService.fetchProductStocks(productIdList) ;
 
         return (stockList != null)
                 ? stockList.stream()
@@ -261,20 +183,6 @@ public class ProductService {
                 : new HashMap<>();
     }
 
-    public Map<Long, ProductStockResponse> fetchStockMapInventoryServiceFallback(
-            List<Long> productIdList,
-            Throwable t
-    ) {
-        log.error(
-                "Inventory Service unavailable while fetching stock info. productIds={}",
-                productIdList,
-                t
-        );
-
-        return new HashMap<>();
-    }
-
-    @CircuitBreaker(name = "categoryService", fallbackMethod = "fetchCategoryMapCategoryServiceFallback")
     public Map<Long, ProductCategoryInfoResponse> fetchCategoryMap(
             List<Product> productList
     ) {
@@ -297,9 +205,8 @@ public class ProductService {
                         ))
                         .toList();
 
-        List<ProductCategoryInfoResponse> categoryInfoList = categoryClient
-                .getCategoryWithSubCategoriesForProductList(requests)
-                .getBody();
+        List<ProductCategoryInfoResponse> categoryInfoList = categoryClientService.
+                fetchCategoriesWithSubCategories(requests);
 
         return (categoryInfoList != null)
                 ? categoryInfoList.stream()
@@ -310,60 +217,20 @@ public class ProductService {
                 : new HashMap<>();
     }
 
-    public Map<Long, ProductCategoryInfoResponse> fetchCategoryMapCategoryServiceFallback(
-            List<Product> productList,
-            Throwable t
-    ) {
-        log.error(
-                "Category Service unavailable while fetching category map. productCount={}",
-                productList != null ? productList.size() : 0,
-                t
-        );
-
-        return new HashMap<>();
-    }
-
-    @CircuitBreaker(name = "inventoryService", fallbackMethod = "getBasketProductResponseInventoryServiceFallback")
     public List<BasketProductResponse> getBasketProductResponse(List<Long> productIdList){
         List<Product> products = findByProductIdIn(productIdList);
 
-        List<ProductStockResponse> productStockResponses = inventoryClient.
-                    getStockForProducts(productIdList)
-                    .getBody();
+        List<ProductStockResponse> productStockResponses = inventoryClientService.
+                fetchProductStocks(productIdList);
 
         return mapToBasketProductResponse(products,productStockResponses);
     }
 
-    public List<BasketProductResponse> getBasketProductResponseInventoryServiceFallback(
-            List<Long> productIdList,
-            Throwable t
-    ) {
-        log.error(
-                "Inventory Service unavailable while fetching basket product response. productIds={}",
-                productIdList,
-                t
-        );
 
-        return Collections.emptyList();
-    }
-
-    @CircuitBreaker(name = "categoryService", fallbackMethod = "validateCategoryStructureCategoryServiceFallback")
     public void validateCategoryStructure(ProductRequest request) {
         if (request.categoryRequestList() != null && !request.categoryRequestList().isEmpty()) {
-            categoryClient.validateCategoryHierarchy(request.categoryRequestList());
+            categoryClientService.validateCategoryHierarchy(request.categoryRequestList());
         }
-    }
-
-    public void validateCategoryStructureCategoryServiceFallback(
-            ProductRequest request,
-            Throwable t
-    ) {
-        log.error(
-                "Category Service unavailable while validating category structure. request={}",
-                request,
-                t
-        );
-        throw new RuntimeException("Category service is temporarily unavailable");
     }
 
     // Update
@@ -373,6 +240,10 @@ public class ProductService {
         productManager.updateProductCore(id,productRequest);
 
         return "Successfully";
+    }
+
+    public void revertToActiveStatus(Long id){
+        productManager.revertToActiveStatus(id);
     }
 
     public Boolean deleteProductById(Long productId) {

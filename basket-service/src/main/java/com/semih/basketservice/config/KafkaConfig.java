@@ -1,5 +1,6 @@
-package com.semih.productservice.config;
+package com.semih.basketservice.config;
 
+import com.semih.common.dto.request.BasketEvent;
 import com.semih.common.dto.request.ProductStockEvent;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -20,16 +21,16 @@ public class KafkaConfig {
 
     private final KafkaProperties kafkaProperties;
 
-    private final String productEventsTopic;
+    private final String basketEventsTopic;
 
     public KafkaConfig(KafkaProperties kafkaProperties,
-                       @Value("${spring.kafka.properties.topics.product-events}") String productEventsTopic) {
+                       @Value("${spring.kafka.properties.topics.basket-events}") String basketEventsTopic) {
         this.kafkaProperties = kafkaProperties;
-        this.productEventsTopic = productEventsTopic;
+        this.basketEventsTopic = basketEventsTopic;
     }
 
     @Bean
-    public ProducerFactory<String, ProductStockEvent> producerFactory() {
+    public ProducerFactory<String, BasketEvent> producerFactory() {
         Map<String, Object> configProps = new HashMap<>(kafkaProperties.buildProducerProperties());
 
         configProps.put(ProducerConfig.ACKS_CONFIG, "all");
@@ -39,13 +40,13 @@ public class KafkaConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, ProductStockEvent> kafkaTemplate() {
+    public KafkaTemplate<String, BasketEvent> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
 
     @Bean
     public NewTopic productEventsTopic() {
-        return TopicBuilder.name(productEventsTopic)
+        return TopicBuilder.name(basketEventsTopic)
                 .partitions(3)
                 .replicas(3)
                 .configs(Map.of("min.insync.replicas", "2"))

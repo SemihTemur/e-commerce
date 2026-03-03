@@ -1,7 +1,10 @@
 package com.semih.inventoryservice.service;
 
 import com.semih.common.constant.EntityStatus;
+import com.semih.common.constant.InventoryResponseStatus;
 import com.semih.common.constant.OutboxEventType;
+import com.semih.common.dto.request.OrderCreatedEvent;
+import com.semih.common.dto.request.OrderStockResultEvent;
 import com.semih.common.dto.request.ProductQuantityRequest;
 import com.semih.common.dto.request.ProductStockEvent;
 import com.semih.common.dto.response.ProductStockResponse;
@@ -12,8 +15,11 @@ import com.semih.common.exception.ProductNotFoundException;
 import com.semih.common.exception.StockNotFoundException;
 import com.semih.inventoryservice.document.Inventory;
 import com.semih.inventoryservice.repository.InventoryRepository;
+import com.semih.inventoryservice.repository.ProcessedEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,12 +31,25 @@ public class InventoryService {
 
     private final InventoryRepository inventoryRepository;
 
+    private final InventoryManager inventoryManager;
+
+    private final KafkaTemplate<String, Object> orderStockResultEventKafkaTemplate;
+
+    private final String inventoryResponseTopic;
+
     private static final Logger log = LoggerFactory.getLogger(InventoryService.class);
 
-    public InventoryService(InventoryRepository inventoryRepository) {
+    public InventoryService(InventoryRepository inventoryRepository,
+                            InventoryManager inventoryManager,
+                            KafkaTemplate<String, Object> orderStockResultEventKafkaTemplate,
+                            @Value("${spring.kafka.properties.topics.inventory-response}") String inventoryResponseTopic) {
         this.inventoryRepository = inventoryRepository;
+        this.inventoryManager = inventoryManager;
+        this.orderStockResultEventKafkaTemplate = orderStockResultEventKafkaTemplate;
+        this.inventoryResponseTopic = inventoryResponseTopic;
     }
 
+    @Transactional
     public ProductStockResponseEvent executeInventoryOperation(ProductStockEvent event) {
         try {
             return switch (event.eventType()) {
@@ -90,23 +109,27 @@ public class InventoryService {
                     "Lütfen daha az miktar girin.");
     }
 
-    @Transactional
-    public void checkAvailabilityByProductIds(List<ProductQuantityRequest> productQuantityRequests) {
-        Map<Long, Integer> productQuantityRequestMap = productQuantityRequests.stream()
-                .collect(Collectors.toMap(ProductQuantityRequest::productId,
-                        ProductQuantityRequest::quantity));
+    public void checkAvailabilityByProductIds(OrderCreatedEvent orderCreatedEvent) {
+        try {
+            // Transactional işlemi başlat
+            inventoryManager.processInventoryChanges(orderCreatedEvent);
 
-        List<Inventory> inventoryList = inventoryRepository.findByProductIdIn(
-                productQuantityRequestMap.keySet());
+            // Başarılıysa onay eventi gönder
+            sendResponseToOrder(orderCreatedEvent.orderId(),
+                    InventoryResponseStatus.STOCK_CONFIRMED, "Stok rezerve edildi.");
 
-        validateAllProductsExist(inventoryList, productQuantityRequestMap.keySet());
+        } catch (Exception e) {
 
-        // Stok güncelleme işini özel metoda devrediyoruz
-        updateInventoryStocks(inventoryList, productQuantityRequestMap);
+            // Hata durumunda RED eventi gönderiyoruz
+            sendResponseToOrder(orderCreatedEvent.orderId(),
+                    InventoryResponseStatus.STOCK_REJECTED, e.getMessage());
 
-        inventoryRepository.saveAll(inventoryList);
+            // Loglama yapabilirsin
+            log.error("Transaction iptal edildi ve Red mesajı gönderildi: " + e.getMessage());
+        }
     }
 
+    @Transactional
     public void updateInventory(ProductStockEvent event) {
         Inventory inventory = inventoryRepository.findByProductId(event.productId())
                 .orElseThrow(() -> new StockNotFoundException("Stock not found"));
@@ -115,6 +138,7 @@ public class InventoryService {
         inventoryRepository.save(inventory);
     }
 
+    @Transactional
     public void deleteInventory(Long productId) {
         Inventory inventory = inventoryRepository.findByProductId(productId)
                 .orElseThrow(() -> new StockNotFoundException("Stock not found"));
@@ -133,6 +157,11 @@ public class InventoryService {
         );
     }
 
+    private void sendResponseToOrder(Long orderId, InventoryResponseStatus status, String reason) {
+        OrderStockResultEvent response = new OrderStockResultEvent(UUID.randomUUID(),orderId, status, reason);
+        orderStockResultEventKafkaTemplate.send(inventoryResponseTopic, orderId.toString(), response);
+    }
+
     //toResponse
     private List<ProductStockResponse> mapToProductStockResponse(List<Inventory> inventorySet){
         List<ProductStockResponse> productStockResponses = new ArrayList<>();
@@ -142,14 +171,6 @@ public class InventoryService {
                     inventory.getQuantity()));
 
         return productStockResponses;
-    }
-
-    //toEntity
-    private Inventory mapToInventoryEntity(ProductStockEvent productStockEvent){
-        return new Inventory(
-                productStockEvent.productId(),
-                productStockEvent.quantity()
-        );
     }
 
     private void validateAllProductsExist(List<Inventory> inventoryList, Set<Long> requestProductIds) {
@@ -164,24 +185,6 @@ public class InventoryService {
         }
     }
 
-    private void updateInventoryStocks(List<Inventory> inventoryList, Map<Long, Integer> requestMap) {
-        for (Inventory inventory : inventoryList) {
-            Integer requestedQuantity = requestMap.get(inventory.getProductId());
 
-            validateStockAvailability(inventory, requestedQuantity);
-
-            int remainingStock = inventory.getQuantity() - requestedQuantity;
-            inventory.setQuantity(remainingStock);
-        }
-    }
-
-    private void validateStockAvailability(Inventory inventory, Integer requestedQuantity) {
-        if (inventory.getQuantity() < requestedQuantity) {
-            throw new InsufficientStockException(
-                    String.format("Yeterli stok yok. ProductId=%d, requested=%d, available=%d",
-                            inventory.getProductId(), requestedQuantity, inventory.getQuantity())
-            );
-        }
-    }
 
 }

@@ -24,9 +24,9 @@ public class BasketController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<String> checkoutBasket() {
-        String result = basketService.checkoutBasket();
-        return ResponseEntity.ok(result);
+    public ResponseEntity<Void> checkoutBasket() {
+        basketService.checkoutBasket();
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/items")

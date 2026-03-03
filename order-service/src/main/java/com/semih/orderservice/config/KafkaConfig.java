@@ -1,5 +1,6 @@
-package com.semih.inventoryservice.config;
+package com.semih.orderservice.config;
 
+import com.semih.common.dto.request.OrderCreatedEvent;
 import com.semih.common.dto.response.ProductStockResponseEvent;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -20,17 +21,16 @@ public class KafkaConfig {
 
     private final KafkaProperties kafkaProperties;
 
-    private final String productStockResponseEventsTopic;
+    private final String orderEventsTopic;
 
-    private final String inventoryResponseTopic;
+    private final String orderBasketResult;
 
     public KafkaConfig(KafkaProperties kafkaProperties,
-                       @Value("${spring.kafka.properties.topics.product-stock-response-events}")
-                       String productStockResponseEventsTopic,
-                       @Value("${spring.kafka.properties.topics.inventory-response}") String inventoryResponseTopic) {
+                       @Value("${spring.kafka.properties.topics.order-events}") String orderEventsTopic,
+                       @Value("${spring.kafka.properties.topics.order-basket-result}") String orderBasketResult) {
         this.kafkaProperties = kafkaProperties;
-        this.productStockResponseEventsTopic = productStockResponseEventsTopic;
-        this.inventoryResponseTopic = inventoryResponseTopic;
+        this.orderEventsTopic = orderEventsTopic;
+        this.orderBasketResult = orderBasketResult;
     }
 
     @Bean
@@ -50,17 +50,18 @@ public class KafkaConfig {
     @Bean
     public NewTopic productStockResponseEventsTopic(){
         return TopicBuilder
-                .name(productStockResponseEventsTopic)
+                .name(orderEventsTopic)
                 .replicas(3)
                 .configs(Map.of("min.insync.replicas","2"))
                 .build();
     }
 
     @Bean
-    public NewTopic inventoryResponseTopic() {
-        return TopicBuilder.name(inventoryResponseTopic)
-                .partitions(3)
-                .replicas(1) // Local'de çalışıyorsan 1, prod ortamında 3 yapmalısın
+    public NewTopic orderBasketResultTopic(){
+        return TopicBuilder
+                .name(orderBasketResult)
+                .replicas(3)
+                .configs(Map.of("min.insync.replicas","2"))
                 .build();
     }
 }

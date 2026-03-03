@@ -73,6 +73,12 @@ public class ProductController {
         return ResponseEntity.ok(productService.getAllProductDetail());
     }
 
+    @PutMapping("/{id}/activate")
+    public ResponseEntity<Void> revertToActiveStatus(@PathVariable(name = "id") Long productId){
+         productService.revertToActiveStatus(productId);
+         return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{productId}")
     public ResponseEntity<String> updateProductPartially(
             @PathVariable Long productId, @Valid @RequestBody ProductRequest request) {

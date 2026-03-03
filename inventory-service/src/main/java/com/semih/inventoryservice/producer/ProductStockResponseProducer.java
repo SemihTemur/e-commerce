@@ -10,18 +10,18 @@ import java.util.concurrent.ExecutionException;
 @Component
 public class ProductStockResponseProducer {
 
-    private final KafkaTemplate<Long, ProductStockResponseEvent> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${spring.kafka.properties.topics.product-stock-response-events}")
     private String productStockResponseEventsTopic;
 
-    public ProductStockResponseProducer(KafkaTemplate<Long, ProductStockResponseEvent> kafkaTemplate) {
+    public ProductStockResponseProducer(KafkaTemplate<String, Object> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 
     public void send(ProductStockResponseEvent response) throws ExecutionException, InterruptedException {
         kafkaTemplate.send(productStockResponseEventsTopic,
-                response.productId(),
+                response.productId().toString(),
                 response);
     }
 

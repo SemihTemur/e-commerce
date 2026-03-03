@@ -149,6 +149,15 @@ public class ProductManager {
         productUpdateService.rejectUpdateApply(product.getId());
     }
 
+    @Transactional
+    public void revertToActiveStatus(Long id){
+        Product updateProduct = productRepository.findRejectedProductById(id)
+                .orElseThrow(() -> new ProductNotFoundException("Product is not found" + id));
+
+        updateProduct.setStatus(ProductStatus.ACTIVE);
+        updateProduct.setStatusReason("Reverted to ACTIVE after rejection.");
+    }
+
     // silme isteği gonder
     @Transactional
     public void deleteProduct(Long productId){

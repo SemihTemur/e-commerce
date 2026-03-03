@@ -1,7 +1,6 @@
 package com.semih.basketservice.client;
 
 import com.semih.basketservice.config.FeignTracingConfig;
-import com.semih.common.dto.request.OrderRequest;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,7 +14,7 @@ import static com.semih.common.config.RestApis.*;
 )
 public interface OrderClient {
 
-     @PostMapping
-     ResponseEntity<String> createOrder(@RequestBody OrderRequest orderRequest);
+//     @PostMapping
+//     ResponseEntity<String> createOrder(@RequestBody OrderRequest orderRequest);
 
 }

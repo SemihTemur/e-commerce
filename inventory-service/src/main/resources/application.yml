@@ -11,7 +11,7 @@ spring:
       - localhost:49092
 
     producer:
-      key-serializer: org.apache.kafka.common.serialization.LongSerializer
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         acks: all
@@ -37,6 +37,8 @@ spring:
       topics:
         product-events: product-events-topic
         product-stock-response-events: product-stock-response-events
+        order-events: order-events-topic
+        inventory-response: inventory-response-topic
 
 server:
   port: 8084
